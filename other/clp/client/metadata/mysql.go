@@ -27,7 +27,7 @@ func (db *MetaMySQL) Connect(usr string, pwd string, addr string) error {
 	return err
 }
 
-func (db *MetaMySQL) Disconnect() error {
+func (db *MetaMySQL) Close() error {
 	if db.conn == nil {
 		err := errors.New("no valid connection")
 		log.Print(err)
@@ -62,7 +62,7 @@ var qCreateFiles = `CREATE TABLE IF NOT EXISTS files (
     FOREIGN KEY (archive_id) REFERENCES archives(archive_id)
 );`
 
-func (db *MetaMySQL) CreateTables() error {
+func (db *MetaMySQL) InitService() error {
 	if db.conn == nil {
 		err := errors.New("no valid connection")
 		log.Print(err)
@@ -132,29 +132,9 @@ func (db *MetaMySQL) GetFiles(tag string) ([]string, error) {
 	return files, nil
 }
 
-type ArchiveMetadata struct {
-	uncompressedSize uint64
-	size             uint64
-	fid              string
-	archiveID        int64
-}
-
-type FileMetadata struct {
-	filePath          string
-	tag               string
-	beginTimestamp    uint64
-	endTimestamp      uint64
-	uncompressedBytes uint64
-	numMessages       uint64
-	archiveID         int64
-}
-
 var qAddArchive = `INSERT INTO archives(uncompressed_size, size, fid) VALUES (?, ?, ?)`
 var qAddFile = `INSERT INTO files(file_path, tag, begin_timestamp, end_timestamp, archive_id, uncompressed_bytes, num_messages) VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-// AddMetadata Insert metadata into database. All insertions are executed in a transaction.
-// archiveID in ArchiveMetadata is not used. archiveID in FileMetadata in the index into archives,
-// not the archive_id in archives table in database, and is assumed to be within range.
 func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadata) error {
 	if db.conn == nil {
 		err := errors.New("no valid connection")
@@ -175,7 +155,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	// defering the close of prepared statement only works after go 1.4
 	defer archiveStmt.Close()
 	for _, archive := range archives {
-		res, err := archiveStmt.Exec(archive.uncompressedSize, archive.size, archive.fid)
+		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid)
 		if err != nil {
 			log.Print(err)
 			tx.Rollback()
@@ -196,8 +176,8 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	}
 	defer fileStmt.Close()
 	for _, file := range files {
-		archiveID := archiveIDs[file.archiveID]
-		_, err := fileStmt.Exec(file.filePath, file.tag, file.beginTimestamp, file.endTimestamp, archiveID, file.uncompressedBytes, file.numMessages)
+		archiveID := archiveIDs[file.ArchiveID]
+		_, err := fileStmt.Exec(file.FilePath, file.Tag, file.BeginTimestamp, file.EndTimestamp, archiveID, file.UncompressedBytes, file.NumMessages)
 		if err != nil {
 			log.Print(err)
 			tx.Rollback()
