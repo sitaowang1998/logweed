@@ -102,6 +102,7 @@ func (db *MetaMySQL) ListTags() ([]string, error) {
 			log.Print(err)
 			return nil, err
 		}
+		tags = append(tags, tag)
 	}
 	return tags, nil
 }
@@ -128,6 +129,7 @@ func (db *MetaMySQL) GetFiles(tag string) ([]string, error) {
 			log.Print(err)
 			return nil, err
 		}
+		files = append(files, file)
 	}
 	return files, nil
 }
