@@ -80,7 +80,7 @@ func (db *MetaMySQL) InitService() error {
 	return err
 }
 
-var qListTags = `SELECT tag FROM files;`
+var qListTags = `SELECT DISTINCE tag FROM files;`
 
 func (db *MetaMySQL) ListTags() ([]string, error) {
 	if db.conn == nil {
@@ -190,7 +190,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	return nil
 }
 
-var qSearch = `SELECT archives.fid FROM archives INNER JOIN (SELECT DISTINCT archive_id FROM files WHERE tag = ? AND ? <= begin_timestamp AND ? >= end_timestamp) AS t ON archives.archive_id = t.archive_id`
+var qSearch = `SELECT archives.fid FROM archives INNER JOIN (SELECT DISTINCT archive_id FROM files WHERE tag = ? AND ? <= end_timestamp AND ? >= begin_timestamp) AS t ON archives.archive_id = t.archive_id`
 
 func (db *MetaMySQL) Search(tag string, beginTimestamp uint64, endTimestamp uint64) ([]string, error) {
 	if db.conn == nil {
