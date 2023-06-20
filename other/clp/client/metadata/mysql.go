@@ -80,7 +80,7 @@ func (db *MetaMySQL) InitService() error {
 	return err
 }
 
-var qListTags = `SELECT DISTINCE tag FROM files;`
+var qListTags = `SELECT DISTINCT tag FROM files;`
 
 func (db *MetaMySQL) ListTags() ([]string, error) {
 	if db.conn == nil {
