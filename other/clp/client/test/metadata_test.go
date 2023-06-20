@@ -1,6 +1,7 @@
 package test
 
 import (
+	"log"
 	"reflect"
 	"sort"
 	"testing"
@@ -19,28 +20,16 @@ var files = []metadata.FileMetadata{
 	{"/path/to/3", "tag2", 9000, 11000, 3000, 100, 0},
 }
 
-func initService() (metadata.MetadataService, error) {
-	var db = metadata.MetaMySQL{}
+var db metadata.MetadataService
+
+func init() {
+	db = &metadata.MetaMySQL{}
 	err := db.Connect("test", "pwd", "127.0.0.1:3306")
 	if err != nil {
-		return &db, err
+		log.Fatal("Connect to metadata service fail.", err)
 	}
-	err = db.InitService()
-	if err != nil {
-		return &db, err
-	}
-	err = db.AddMetadata(archives, files)
-	if err != nil {
-		return &db, err
-	}
-	return &db, nil
-}
-
-func TestAddMetadata(t *testing.T) {
-	_, err := initService()
-	if err != nil {
-		t.Fatal("Add metadata fail.", err)
-	}
+	db.InitService()
+	db.AddMetadata(archives, files)
 }
 
 func ListEqual(l1 []string, l2 []string) bool {
@@ -50,10 +39,6 @@ func ListEqual(l1 []string, l2 []string) bool {
 }
 
 func TestGetMeta(t *testing.T) {
-	db, err := initService()
-	if err != nil {
-		t.Fatal("Add metadata fail.", err)
-	}
 	tags, err := db.ListTags()
 	if err != nil {
 		t.Fatal("Get tag fail.", err)
@@ -73,10 +58,6 @@ func TestGetMeta(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	db, err := initService()
-	if err != nil {
-		t.Fatal("Add metadata fail.", err)
-	}
 	result_1, err := db.Search("tag1", 4500, 6000)
 	if err != nil {
 		t.Fatal("Search fail.", err)
