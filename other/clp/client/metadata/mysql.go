@@ -135,7 +135,7 @@ func (db *MetaMySQL) GetFiles(tag string) ([]string, error) {
 	return files, nil
 }
 
-var qAddArchive = `INSERT INTO archives(uncompressed_size, size, fid) VALUES (?, ?, ?)`
+var qAddArchive = `INSERT INTO archives(uncompressed_size, size, fid, num_segments) VALUES (?, ?, ?, ?)`
 var qAddFile = `INSERT INTO files(file_path, tag, begin_timestamp, end_timestamp, archive_id, uncompressed_bytes, num_messages) VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadata) error {
@@ -158,7 +158,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	// defering the close of prepared statement only works after go 1.4
 	defer archiveStmt.Close()
 	for _, archive := range archives {
-		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid)
+		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid, archive.NumSegments)
 		if err != nil {
 			log.Print(err)
 			tx.Rollback()
