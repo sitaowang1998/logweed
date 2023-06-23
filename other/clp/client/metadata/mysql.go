@@ -193,7 +193,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 
 var qSearch = `SELECT a.uncompressed_size, a.size, a.fid, a.num_segments FROM archives AS a INNER JOIN
     (SELECT DISTINCT archive_id FROM files WHERE tag = ? AND ? <= end_timestamp AND ? >= begin_timestamp) AS t
-    ON archives.archive_id = t.archive_id`
+    ON a.archive_id = t.archive_id`
 
 func (db *MetaMySQL) Search(tag string, beginTimestamp uint64, endTimestamp uint64) ([]ArchiveMetadata, error) {
 	if db.conn == nil {
