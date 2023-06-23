@@ -4,7 +4,7 @@ type ArchiveMetadata struct {
 	UncompressedSize uint64
 	Size             uint64
 	Fid              string
-	ArchiveID        int64
+	NumSegments      int
 }
 
 type FileMetadata struct {
@@ -27,5 +27,5 @@ type MetadataService interface {
 	// ArchiveID in ArchiveMetadata is not used. ArchiveID in FileMetadata in the index into archives,
 	// not the archive_id in archives table in database, and is assumed to be within range.
 	AddMetadata(archives []ArchiveMetadata, files []FileMetadata) error
-	Search(tag string, beginTimestamp uint64, endTimestamp uint64) ([]string, error)
+	Search(tag string, beginTimestamp uint64, endTimestamp uint64) ([]ArchiveMetadata, error)
 }

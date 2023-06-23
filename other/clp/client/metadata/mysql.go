@@ -45,6 +45,7 @@ var qCreateArchives = `CREATE TABLE IF NOT EXISTS archives (
     uncompressed_size BIGINT UNSIGNED,
     size BIGINT UNSIGNED,
     fid VARCHAR(33),
+    num_segments INT,
     PRIMARY KEY (archive_id)
 );`
 
@@ -190,15 +191,17 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	return nil
 }
 
-var qSearch = `SELECT archives.fid FROM archives INNER JOIN (SELECT DISTINCT archive_id FROM files WHERE tag = ? AND ? <= end_timestamp AND ? >= begin_timestamp) AS t ON archives.archive_id = t.archive_id`
+var qSearch = `SELECT a.uncompressed_size, a.size, a.fid, a.num_segments FROM archives AS a INNER JOIN
+    (SELECT DISTINCT archive_id FROM files WHERE tag = ? AND ? <= end_timestamp AND ? >= begin_timestamp) AS t
+    ON archives.archive_id = t.archive_id`
 
-func (db *MetaMySQL) Search(tag string, beginTimestamp uint64, endTimestamp uint64) ([]string, error) {
+func (db *MetaMySQL) Search(tag string, beginTimestamp uint64, endTimestamp uint64) ([]ArchiveMetadata, error) {
 	if db.conn == nil {
 		err := errors.New("no valid connection")
 		log.Print(err)
 		return nil, err
 	}
-	fids := make([]string, 0)
+	archives := make([]ArchiveMetadata, 0)
 	rows, err := db.conn.Query(qSearch, tag, beginTimestamp, endTimestamp)
 	if err != nil {
 		log.Print(err)
@@ -206,13 +209,21 @@ func (db *MetaMySQL) Search(tag string, beginTimestamp uint64, endTimestamp uint
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var uncompressedSize uint64
+		var size uint64
 		var fid string
-		err := rows.Scan(&fid)
+		var numSegments int
+		err := rows.Scan(&uncompressedSize, &size, &fid, &numSegments)
 		if err != nil {
 			log.Print(err)
 			return nil, err
 		}
-		fids = append(fids, fid)
+		archives = append(archives, ArchiveMetadata{
+			UncompressedSize: uncompressedSize,
+			Size:             size,
+			Fid:              fid,
+			NumSegments:      numSegments,
+		})
 	}
-	return fids, nil
+	return archives, nil
 }

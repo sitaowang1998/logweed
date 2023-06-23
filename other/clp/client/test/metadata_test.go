@@ -9,8 +9,8 @@ import (
 import "clp_client/metadata"
 
 var archives = []metadata.ArchiveMetadata{
-	{UncompressedSize: 100, Size: 10, Fid: "3,130fa903"},
-	{UncompressedSize: 250, Size: 30, Fid: "1,369b901ac7"},
+	{UncompressedSize: 100, Size: 10, Fid: "3,130fa903", NumSegments: 2},
+	{UncompressedSize: 250, Size: 30, Fid: "1,369b901ac7", NumSegments: 1},
 }
 
 var files = []metadata.FileMetadata{
@@ -32,9 +32,19 @@ func init() {
 	db.AddMetadata(archives, files)
 }
 
-func ListEqual(l1 []string, l2 []string) bool {
+func ListEqual(l1, l2 []string) bool {
 	sort.Strings(l1)
 	sort.Strings(l2)
+	return reflect.DeepEqual(l1, l2)
+}
+
+func ArchiveListEqual(l1, l2 []metadata.ArchiveMetadata) bool {
+	sort.Slice(l1, func(i, j int) bool {
+		return l1[i].Fid < l1[j].Fid
+	})
+	sort.Slice(l2, func(i, j int) bool {
+		return l2[i].Fid < l2[j].Fid
+	})
 	return reflect.DeepEqual(l1, l2)
 }
 
@@ -62,16 +72,16 @@ func TestSearch(t *testing.T) {
 	if err != nil {
 		t.Fatal("Search fail.", err)
 	}
-	resultExpected_1 := []string{"3,130fa903"}
-	if !ListEqual(result_1, resultExpected_1) {
+	resultExpected_1 := []metadata.ArchiveMetadata{archives[0]}
+	if !ArchiveListEqual(result_1, resultExpected_1) {
 		t.Fatalf("Search not match. Expect %v. Get %v.\n", result_1, resultExpected_1)
 	}
 	result_2, err := db.Search("tag2", 9000, 11000)
 	if err != nil {
 		t.Fatal("Search fail.", err)
 	}
-	resultExpected_2 := []string{"3,130fa903", "1,369b901ac7"}
-	if !ListEqual(result_2, resultExpected_2) {
+	resultExpected_2 := archives
+	if !ArchiveListEqual(result_2, resultExpected_2) {
 		t.Fatalf("Search not match. Expect %v. Get %v.\n", result_2, resultExpected_2)
 	}
 }
