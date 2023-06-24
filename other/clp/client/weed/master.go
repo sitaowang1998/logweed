@@ -8,8 +8,8 @@ import (
 )
 
 type VolumeAddr struct {
-	publicUrl string
-	url       string
+	PublicUrl string `json:"publicUrl"`
+	Url       string `json:"url"`
 }
 
 type volumeLookupResp struct {
@@ -33,10 +33,10 @@ func LookupVolume(masterAddr string, vid string) ([]VolumeAddr, error) {
 }
 
 type FileKey struct {
-	count     int
-	fid       string
-	url       string
-	publicUrl string
+	Count     int    `json:"count"`
+	Fid       string `json:"fid"`
+	Url       string `json:"url"`
+	PublicUrl string `json:"publicUrl"`
 }
 
 func AssignFileKey(masterAddr string, count int) (FileKey, error) {

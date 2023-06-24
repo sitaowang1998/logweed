@@ -1,6 +1,8 @@
 package weed
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +10,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 )
 
 func UploadFile(volumeAddr string, fid string, filepath string) error {
@@ -68,4 +72,43 @@ func DownloadFile(volumeAddr string, fid string, filepath string) error {
 		log.Println("Copy to file fails.", err)
 	}
 	return err
+}
+
+type clgSearchRequest struct {
+	fid    string
+	nsegs  int
+	clgcmg []string
+}
+
+func ClgSearch(volumeAddr string, fid string, numSegments int, bts uint64, ets uint64) ([]string, error) {
+	// Generate json request
+	jsonBytes, err := json.Marshal(clgSearchRequest{
+		fid:    fid,
+		nsegs:  numSegments,
+		clgcmg: []string{"--tge", strconv.FormatUint(bts, 10), "--tle", strconv.FormatUint(ets, 10)},
+	})
+	if err != nil {
+		log.Println("Generate json search request fails.", err)
+		return nil, err
+	}
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://{}/clgsearch", volumeAddr), bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		log.Println("Generate search request fails.", err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send request
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Send clg search request fails.", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Read clg search result fails.", err)
+	}
+	return strings.Split(string(body), "\n"), nil
 }
