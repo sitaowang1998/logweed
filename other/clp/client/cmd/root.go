@@ -23,6 +23,7 @@ func init() {
 	CmdRoot.PersistentFlags().StringVar(&MetadataAddr, "metadata_addr", "", "metadata address, in format of ip:port")
 	CmdRoot.PersistentFlags().StringVar(&metadataUsr, "metadata_usr", "", "metadata username")
 	CmdRoot.AddCommand(CmdSearch)
+	CmdRoot.AddCommand(CmdCompress)
 }
 
 func root(cmd *cobra.Command, args []string) {
