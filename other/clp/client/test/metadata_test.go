@@ -74,7 +74,7 @@ func TestSearch(t *testing.T) {
 	}
 	resultExpected_1 := []metadata.ArchiveMetadata{archives[0]}
 	if !ArchiveListEqual(result_1, resultExpected_1) {
-		t.Fatalf("Search not match. Expect %v. Get %v.\n", result_1, resultExpected_1)
+		t.Fatalf("Search not match. Expect %v. Get %v.\n", resultExpected_1, result_1)
 	}
 	result_2, err := db.Search("tag2", 9000, 11000)
 	if err != nil {
@@ -82,6 +82,6 @@ func TestSearch(t *testing.T) {
 	}
 	resultExpected_2 := archives
 	if !ArchiveListEqual(result_2, resultExpected_2) {
-		t.Fatalf("Search not match. Expect %v. Get %v.\n", result_2, resultExpected_2)
+		t.Fatalf("Search not match. Expect %v. Get %v.\n", resultExpected_2, result_2)
 	}
 }

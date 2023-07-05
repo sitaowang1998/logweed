@@ -191,7 +191,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	return nil
 }
 
-var qSearch = `SELECT a.uncompressed_size, a.size, a.fid, a.num_segments FROM archives AS a INNER JOIN
+var qSearch = `SELECT a.uncompressed_size, a.size, a.fid, a.num_segments, a.archive_id FROM archives AS a INNER JOIN
     (SELECT DISTINCT archive_id FROM files WHERE tag = ? AND ? <= end_timestamp AND ? >= begin_timestamp) AS t
     ON a.archive_id = t.archive_id`
 
@@ -213,7 +213,8 @@ func (db *MetaMySQL) Search(tag string, beginTimestamp uint64, endTimestamp uint
 		var size uint64
 		var fid string
 		var numSegments int
-		err := rows.Scan(&uncompressedSize, &size, &fid, &numSegments)
+		var archiveID string
+		err := rows.Scan(&uncompressedSize, &size, &fid, &numSegments, &archiveID)
 		if err != nil {
 			log.Print(err)
 			return nil, err
@@ -223,6 +224,7 @@ func (db *MetaMySQL) Search(tag string, beginTimestamp uint64, endTimestamp uint
 			Size:             size,
 			Fid:              fid,
 			NumSegments:      numSegments,
+			ArchiveID:        archiveID,
 		})
 	}
 	return archives, nil
