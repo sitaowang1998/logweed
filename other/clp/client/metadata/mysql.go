@@ -46,7 +46,7 @@ var qCreateArchives = `CREATE TABLE IF NOT EXISTS archives (
     size BIGINT UNSIGNED,
     fid VARCHAR(33),
     num_segments INT,
-    archive_id VARCHAR(32)
+    archive_id VARCHAR(32),
     PRIMARY KEY (id)
 );`
 
