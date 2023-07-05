@@ -3,7 +3,6 @@ package weed_server
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -32,10 +31,31 @@ func (vs *VolumeServer) GetOrHeadHandler(w http.ResponseWriter, r *http.Request)
 	n := new(needle.Needle)
 	vid, fid, filename, ext, _ := parseURLPath(r.URL.Path)
 
-	if !vs.maybeCheckJwtAuthorization(r, vid, fid, false) {
-		writeJsonError(w, r, http.StatusUnauthorized, errors.New("wrong jwt"))
-		return
-	}
+	//Robin adds
+	// queryValues, err := url.ParseQuery(r.URL.RawQuery)
+	// if queryValues.Has("clg") {
+	// 	//it's a clg search request
+	// 	//handles differently
+	// 	volumeId, err := needle.NewVolumeId(vid)
+	// 	if err != nil {
+	// 		glog.V(2).Infof("parsing vid %s: %v", r.URL.Path, err)
+	// 		w.WriteHeader(http.StatusBadRequest)
+	// 		return
+	// 	}
+	// 	err = n.ParsePath(fid)
+	// 	if err != nil {
+	// 		glog.V(2).Infof("parsing fid %s: %v", r.URL.Path, err)
+	// 		w.WriteHeader(http.StatusBadRequest)
+	// 		return
+	// 	}
+	// 	//all files are stored in the subsequent ids.
+	// 	err = clp.CallClgSearch(vs.store, w, r, n, &volumeId)
+	// }
+	//Robin ends
+	// if !vs.maybeCheckJwtAuthorization(r, vid, fid, false) {
+	// 	writeJsonError(w, r, http.StatusUnauthorized, errors.New("wrong jwt"))
+	// 	return
+	// }
 
 	volumeId, err := needle.NewVolumeId(vid)
 	if err != nil {
