@@ -41,12 +41,13 @@ func (db *MetaMySQL) Close() error {
 }
 
 var qCreateArchives = `CREATE TABLE IF NOT EXISTS archives (
-    archive_id BIGINT NOT NULL AUTO_INCREMENT,
+    id BIGINT NOT NULL AUTO_INCREMENT,
     uncompressed_size BIGINT UNSIGNED,
     size BIGINT UNSIGNED,
     fid VARCHAR(33),
     num_segments INT,
-    PRIMARY KEY (archive_id)
+    archive_id VARCHAR(32)
+    PRIMARY KEY (id)
 );`
 
 var qCreateFiles = `CREATE TABLE IF NOT EXISTS files (
@@ -55,7 +56,7 @@ var qCreateFiles = `CREATE TABLE IF NOT EXISTS files (
     tag VARCHAR(255),
     begin_timestamp BIGINT UNSIGNED,
     end_timestamp BIGINT UNSIGNED,
-    archive_id BIGINT,
+    archive_id VARCHAR(32),
     uncompressed_bytes BIGINT UNSIGNED,
     num_messages BIGINT UNSIGNED,
     PRIMARY KEY (id),
@@ -135,7 +136,7 @@ func (db *MetaMySQL) GetFiles(tag string) ([]string, error) {
 	return files, nil
 }
 
-var qAddArchive = `INSERT INTO archives(uncompressed_size, size, fid, num_segments) VALUES (?, ?, ?, ?)`
+var qAddArchive = `INSERT INTO archives(uncompressed_size, size, fid, num_segments, archivd_id) VALUES (?, ?, ?, ?, ?)`
 var qAddFile = `INSERT INTO files(file_path, tag, begin_timestamp, end_timestamp, archive_id, uncompressed_bytes, num_messages) VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadata) error {
@@ -158,7 +159,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	// defering the close of prepared statement only works after go 1.4
 	defer archiveStmt.Close()
 	for _, archive := range archives {
-		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid, archive.NumSegments)
+		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid, archive.NumSegments, archive.archiveID)
 		if err != nil {
 			log.Print(err)
 			tx.Rollback()
@@ -179,8 +180,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	}
 	defer fileStmt.Close()
 	for _, file := range files {
-		archiveID := archiveIDs[file.ArchiveID]
-		_, err := fileStmt.Exec(file.FilePath, file.Tag, file.BeginTimestamp, file.EndTimestamp, archiveID, file.UncompressedBytes, file.NumMessages)
+		_, err := fileStmt.Exec(file.FilePath, file.Tag, file.BeginTimestamp, file.EndTimestamp, file.ArchiveID, file.UncompressedBytes, file.NumMessages)
 		if err != nil {
 			log.Print(err)
 			tx.Rollback()

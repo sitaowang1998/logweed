@@ -105,6 +105,15 @@ func uploadArchive(archiveDir string, index int, fids []string, numSegments []in
 	wg.Done()
 }
 
+func getArchive(archives []metadata.ArchiveMetadata, archiveID string) *metadata.ArchiveMetadata {
+	for i, _ := range archives {
+		if archives[i].ArchiveID == archiveID {
+			return &archives[i]
+		}
+	}
+	return nil
+}
+
 func compress(cmd *cobra.Command, args []string) {
 	// Parse Argument
 	tag := args[0]
@@ -137,7 +146,7 @@ func compress(cmd *cobra.Command, args []string) {
 	}
 
 	// Generate metadata
-	archiveMetadatas, fileMetadatas, archiveMap, err := GetMetadata(filepath.Join(compressedDir, "metadata.db"))
+	archiveMetadatas, fileMetadatas, err := GetMetadata(filepath.Join(compressedDir, "metadata.db"))
 	if err != nil {
 		return
 	}
@@ -168,10 +177,10 @@ func compress(cmd *cobra.Command, args []string) {
 	wg.Wait()
 
 	// Update metadata with fids and number of segments
-	for i, archive := range archives {
-		archiveIndex := archiveMap[archive]
-		archiveMetadatas[archiveIndex].Fid = fids[i]
-		archiveMetadatas[archiveIndex].NumSegments = numSegments[i]
+	for i, archiveID := range archives {
+		archive := getArchive(archiveMetadatas, archiveID)
+		archive.Fid = fids[i]
+		archive.NumSegments = numSegments[i]
 	}
 
 	// Upload metadata
@@ -184,26 +193,25 @@ func compress(cmd *cobra.Command, args []string) {
 var archiveQuery = "SELECT id, uncompressed_size, size FROM archives"
 var fileQuery = "SELECT path, begin_timestamp, end_timestamp, num_uncompressed_bytes, num_messages, archive_id FROM files"
 
-func GetMetadata(dbFile string) ([]metadata.ArchiveMetadata, []metadata.FileMetadata, map[string]int, error) {
+func GetMetadata(dbFile string) ([]metadata.ArchiveMetadata, []metadata.FileMetadata, error) {
 	conn, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		log.Println("Open metadata.db fails.", err)
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	defer conn.Close()
 	err = conn.Ping()
 	if err != nil {
 		log.Println("Open metadata.db fails.", err)
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	// Get archive metadata
 	archives := make([]metadata.ArchiveMetadata, 0)
 	// Map from archive_id in db to index in archives array.
-	archiveMap := make(map[string]int, 0)
 	archiveRows, err := conn.Query(archiveQuery)
 	if err != nil {
 		log.Println("Get archive metadata fails.", err)
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	for archiveRows.Next() {
 		var id string
@@ -212,14 +220,13 @@ func GetMetadata(dbFile string) ([]metadata.ArchiveMetadata, []metadata.FileMeta
 		if err != nil {
 			log.Println("Get archive metadata fails.", err)
 			archiveRows.Close()
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
-		index := len(archives)
 		archives = append(archives, metadata.ArchiveMetadata{
 			UncompressedSize: uncompressedSize,
 			Size:             size,
+			ArchiveID:        id,
 		})
-		archiveMap[id] = index
 	}
 	archiveRows.Close()
 	// Get file metadata
@@ -227,7 +234,7 @@ func GetMetadata(dbFile string) ([]metadata.ArchiveMetadata, []metadata.FileMeta
 	fileRows, err := conn.Query(fileQuery)
 	if err != nil {
 		log.Println("Get file metadata fails.", err)
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	for fileRows.Next() {
 		var archiveID, path string
@@ -236,9 +243,8 @@ func GetMetadata(dbFile string) ([]metadata.ArchiveMetadata, []metadata.FileMeta
 		if err != nil {
 			log.Println("Get file metadata fails.", err)
 			fileRows.Close()
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
-		archiveIndex := archiveMap[archiveID]
 		files = append(files, metadata.FileMetadata{
 			FilePath:          path,
 			Tag:               "",
@@ -246,9 +252,9 @@ func GetMetadata(dbFile string) ([]metadata.ArchiveMetadata, []metadata.FileMeta
 			EndTimestamp:      endTimestamp,
 			UncompressedBytes: uncompressedBytes,
 			NumMessages:       numMessages,
-			ArchiveID:         int64(archiveIndex),
+			ArchiveID:         archiveID,
 		})
 	}
 	fileRows.Close()
-	return archives, files, archiveMap, nil
+	return archives, files, nil
 }

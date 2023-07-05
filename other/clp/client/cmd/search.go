@@ -71,7 +71,7 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, bts uint64, ets ui
 	// Send search request with a random ip
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	ip := ips[random.Intn(len(ips))]
-	result, err := weed.ClgSearch(ip.PublicUrl, archive.Fid, archive.NumSegments, bts, ets)
+	result, err := weed.ClgSearch(ip.PublicUrl, archive.Fid, archive.NumSegments, bts, ets, archive.ArchiveID)
 	if err != nil {
 		os.Exit(1)
 	}

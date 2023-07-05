@@ -9,15 +9,15 @@ import (
 import "clp_client/metadata"
 
 var archives = []metadata.ArchiveMetadata{
-	{UncompressedSize: 100, Size: 10, Fid: "3,130fa903", NumSegments: 2},
-	{UncompressedSize: 250, Size: 30, Fid: "1,369b901ac7", NumSegments: 1},
+	{UncompressedSize: 100, Size: 10, Fid: "3,130fa903", NumSegments: 2, ArchiveID: "13abd3"},
+	{UncompressedSize: 250, Size: 30, Fid: "1,369b901ac7", NumSegments: 1, ArchiveID: "838f5"},
 }
 
 var files = []metadata.FileMetadata{
-	{"/path/to/0", "tag1", 4000, 5000, 10000, 500, 0},
-	{"/path/to/1", "tag2", 10000, 12000, 5000, 100, 1},
-	{"/path/to/2", "tag1", 7000, 8000, 8000, 400, 0},
-	{"/path/to/3", "tag2", 9000, 11000, 3000, 100, 0},
+	{"/path/to/0", "tag1", 4000, 5000, 10000, 500, "13abd3"},
+	{"/path/to/1", "tag2", 10000, 12000, 5000, 100, "838f5"},
+	{"/path/to/2", "tag1", 7000, 8000, 8000, 400, "13abd3"},
+	{"/path/to/3", "tag2", 9000, 11000, 3000, 100, "13abd3"},
 }
 
 var db metadata.MetadataService
