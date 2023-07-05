@@ -46,7 +46,7 @@ var qCreateArchives = `CREATE TABLE IF NOT EXISTS archives (
     size BIGINT UNSIGNED,
     fid VARCHAR(33),
     num_segments INT,
-    archive_id VARCHAR(32),
+    archive_id VARCHAR(32) UNIQUE,
     PRIMARY KEY (id)
 );`
 
@@ -136,7 +136,7 @@ func (db *MetaMySQL) GetFiles(tag string) ([]string, error) {
 	return files, nil
 }
 
-var qAddArchive = `INSERT INTO archives(uncompressed_size, size, fid, num_segments, archivd_id) VALUES (?, ?, ?, ?, ?)`
+var qAddArchive = `INSERT INTO archives(uncompressed_size, size, fid, num_segments, archive_id) VALUES (?, ?, ?, ?, ?)`
 var qAddFile = `INSERT INTO files(file_path, tag, begin_timestamp, end_timestamp, archive_id, uncompressed_bytes, num_messages) VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadata) error {
