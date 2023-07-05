@@ -159,7 +159,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	// defering the close of prepared statement only works after go 1.4
 	defer archiveStmt.Close()
 	for _, archive := range archives {
-		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid, archive.NumSegments, archive.archiveID)
+		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid, archive.NumSegments, archive.ArchiveID)
 		if err != nil {
 			log.Print(err)
 			tx.Rollback()
