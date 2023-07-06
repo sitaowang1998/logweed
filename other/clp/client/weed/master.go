@@ -17,7 +17,7 @@ type volumeLookupResp struct {
 }
 
 func LookupVolume(masterAddr string, vid string) ([]VolumeAddr, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%v/dir/lookup?volumeID=%v", masterAddr, vid))
+	resp, err := http.Get(fmt.Sprintf("http://%v/dir/lookup?volumeId=%v", masterAddr, vid))
 	if err != nil {
 		log.Println("Lookup volume fails.", err)
 		return nil, err
