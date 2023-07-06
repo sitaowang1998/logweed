@@ -47,7 +47,7 @@ func UploadFile(volumeAddr string, fid string, filepath string) error {
 	return err
 }
 
-func DownloadFile(volumeAddr string, fid string, filepath string) error {
+func VolumeDownloadFile(volumeAddr string, fid string, filepath string) error {
 	file, err := os.Create(filepath)
 	if err != nil {
 		log.Println("Open file fails.", err)
@@ -93,7 +93,7 @@ func ClgSearch(volumeAddr string, fid string, numSegments int, bts uint64, ets u
 		log.Println("Generate json search request fails.", err)
 		return nil, err
 	}
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://{}/clgsearch", volumeAddr), bytes.NewBuffer(jsonBytes))
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%v/clgsearch", volumeAddr), bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		log.Println("Generate search request fails.", err)
 		return nil, err
