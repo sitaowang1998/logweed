@@ -29,7 +29,7 @@ func LookupVolume(masterAddr string, vid string) ([]VolumeAddr, error) {
 		log.Println("Parse volume lookup fails.", err)
 		return nil, err
 	}
-	return v.locations, nil
+	return v.Locations, nil
 }
 
 type FileKey struct {
