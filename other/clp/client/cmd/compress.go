@@ -37,7 +37,7 @@ func init() {
 
 // Invoking clp to compress the logs.
 func compressLog(targetPath string, resultPath string) error {
-	cmd := exec.Command(clpPath, resultPath, targetPath, "--compression-level", fmt.Sprintf("%v", compressLevel))
+	cmd := exec.Command(clpPath, "c", resultPath, targetPath, "--compression-level", fmt.Sprintf("%v", compressLevel))
 	return cmd.Run()
 }
 
