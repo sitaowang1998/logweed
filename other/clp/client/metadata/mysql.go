@@ -145,7 +145,6 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 		log.Print(err)
 		return err
 	}
-	archiveIDs := make([]int64, 0, len(archives))
 	tx, err := db.conn.Begin()
 	if err != nil {
 		log.Print(err)
@@ -159,19 +158,12 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	// defering the close of prepared statement only works after go 1.4
 	defer archiveStmt.Close()
 	for _, archive := range archives {
-		res, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid, archive.NumSegments, archive.ArchiveID)
+		_, err := archiveStmt.Exec(archive.UncompressedSize, archive.Size, archive.Fid, archive.NumSegments, archive.ArchiveID)
 		if err != nil {
-			log.Print(err)
+			log.Println(err)
 			tx.Rollback()
 			return err
 		}
-		archiveID, err := res.LastInsertId()
-		if err != nil {
-			log.Print(err)
-			tx.Rollback()
-			return err
-		}
-		archiveIDs = append(archiveIDs, archiveID)
 	}
 	fileStmt, err := tx.Prepare(qAddFile)
 	if err != nil {
@@ -182,7 +174,7 @@ func (db *MetaMySQL) AddMetadata(archives []ArchiveMetadata, files []FileMetadat
 	for _, file := range files {
 		_, err := fileStmt.Exec(file.FilePath, file.Tag, file.BeginTimestamp, file.EndTimestamp, file.ArchiveID, file.UncompressedBytes, file.NumMessages)
 		if err != nil {
-			log.Print(err)
+			log.Println(err)
 			tx.Rollback()
 			return err
 		}
