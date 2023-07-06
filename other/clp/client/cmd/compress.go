@@ -65,15 +65,10 @@ func uploadVolume(volumeAddr string, fid string, path string, wg *sync.WaitGroup
 	wg.Done()
 }
 
-var archiveFiles = []string{"logypte_dict", "logtype_segindex", "metadata", "metadata_db", "var_dict", "var_segindex"}
+var archiveFiles = []string{"logypte.dict", "logtype.segindex", "metadata", "metadata.db", "var.dict", "var.segindex"}
 
 func uploadArchive(archiveDir string, index int, fids []string, numSegments []int, wg *sync.WaitGroup) {
 	// Get number of files
-	dir, err := os.Open(archiveDir)
-	if err != nil {
-		log.Fatalln("Read archive dir fails.")
-	}
-	defer dir.Close()
 	segmentDir, err := os.Open(filepath.Join(archiveDir, "s"))
 	if err != nil {
 		log.Fatalln("Read archive segment dir fails.")
