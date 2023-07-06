@@ -103,6 +103,8 @@ func search(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	connectMetadataServer()
+
 	// Request archives from metadata service
 	archives, err := MetadataService.Search(tag, bts, ets)
 	if err != nil {

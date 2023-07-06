@@ -15,7 +15,6 @@ var (
 
 var CmdRoot = &cobra.Command{
 	Use: "clp_client",
-	Run: root,
 }
 
 func init() {
@@ -26,7 +25,7 @@ func init() {
 	CmdRoot.AddCommand(CmdCompress)
 }
 
-func root(cmd *cobra.Command, args []string) {
+func connectMetadataServer() {
 	// Connect to metadata service
 	MetadataService = &metadata.MetaMySQL{}
 	for {

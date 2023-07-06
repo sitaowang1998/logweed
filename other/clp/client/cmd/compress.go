@@ -122,6 +122,8 @@ func compress(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	connectMetadataServer()
+
 	// Download file from filer if necessary
 	if filerAddr != "" {
 		localDir := fmt.Sprintf("/tmp/logweed/uncompressed/%v", time.Now())
