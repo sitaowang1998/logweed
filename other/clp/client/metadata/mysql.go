@@ -46,7 +46,7 @@ var qCreateArchives = `CREATE TABLE IF NOT EXISTS archives (
     size BIGINT UNSIGNED,
     fid VARCHAR(33),
     num_segments INT,
-    archive_id VARCHAR(32) UNIQUE,
+    archive_id VARCHAR(64) UNIQUE,
     PRIMARY KEY (id)
 );`
 
@@ -56,7 +56,7 @@ var qCreateFiles = `CREATE TABLE IF NOT EXISTS files (
     tag VARCHAR(255),
     begin_timestamp BIGINT UNSIGNED,
     end_timestamp BIGINT UNSIGNED,
-    archive_id VARCHAR(32),
+    archive_id VARCHAR(64),
     uncompressed_bytes BIGINT UNSIGNED,
     num_messages BIGINT UNSIGNED,
     PRIMARY KEY (id),
