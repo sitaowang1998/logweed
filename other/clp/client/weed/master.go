@@ -13,7 +13,7 @@ type VolumeAddr struct {
 }
 
 type volumeLookupResp struct {
-	locations []VolumeAddr
+	Locations []VolumeAddr `json:"locations"`
 }
 
 func LookupVolume(masterAddr string, vid string) ([]VolumeAddr, error) {
