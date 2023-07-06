@@ -30,9 +30,9 @@ var CmdCompress = &cobra.Command{
 }
 
 func init() {
-	CmdSearch.Flags().StringVar(&clpPath, "clp_path", "", "path to clp binary")
-	CmdSearch.Flags().StringVar(&filerAddr, "filer", "", "ip address of the filer")
-	CmdSearch.Flags().UintVar(&compressLevel, "compress_level", 3, "Compression level 1-9. 1 runs fastest with low compression rate. 9 runs slowest with high compression rate.")
+	CmdCompress.Flags().StringVar(&clpPath, "clp_path", "", "path to clp binary")
+	CmdCompress.Flags().StringVar(&filerAddr, "filer", "", "ip address of the filer")
+	CmdCompress.Flags().UintVar(&compressLevel, "compress_level", 3, "Compression level 1-9. 1 runs fastest with low compression rate. 9 runs slowest with high compression rate.")
 }
 
 // Invoking clp to compress the logs.
