@@ -239,7 +239,7 @@ func GetMetadata(dbFile string) ([]metadata.ArchiveMetadata, []metadata.FileMeta
 	for fileRows.Next() {
 		var archiveID, path string
 		var beginTimestamp, endTimestamp, uncompressedBytes, numMessages uint64
-		err = fileRows.Scan(&path, &beginTimestamp, &endTimestamp, &uncompressedBytes, numMessages, &archiveID)
+		err = fileRows.Scan(&path, &beginTimestamp, &endTimestamp, &uncompressedBytes, &numMessages, &archiveID)
 		if err != nil {
 			log.Println("Get file metadata fails.", err)
 			fileRows.Close()
