@@ -65,7 +65,7 @@ func uploadVolume(volumeAddr string, fid string, path string, wg *sync.WaitGroup
 	wg.Done()
 }
 
-var archiveFiles = []string{"logypte.dict", "logtype.segindex", "metadata", "metadata.db", "var.dict", "var.segindex"}
+var archiveFiles = []string{"logtype.dict", "logtype.segindex", "metadata", "metadata.db", "var.dict", "var.segindex"}
 
 func uploadArchive(archiveDir string, index int, fids []string, numSegments []int, wg *sync.WaitGroup) {
 	// Get number of files
