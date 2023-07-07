@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -51,8 +52,26 @@ func removeFromList(l []string, ele string) []string {
 	return ret
 }
 
-func downloadDir(remotePath string, localPath string) error {
-	// TODO
+func weedDownload(remotePath string, localPath string) error {
+	if !strings.HasSuffix(remotePath, "/") {
+		return weed.DownloadFile(filerAddr, remotePath, localPath)
+	}
+	dir, err := weed.ListDir(filerAddr, remotePath)
+	if err != nil {
+		return err
+	}
+	for _, file := range dir.Files {
+		err = weed.DownloadFile(filerAddr, fmt.Sprintf("%v/%v", dir.Path, file.Name), filepath.Join(localPath, file.Name))
+		if err != nil {
+			return err
+		}
+	}
+	for _, subDir := range dir.SubDirs {
+		err = weedDownload(fmt.Sprintf("%v/%v/", dir.Path, subDir.Name), filepath.Join(localPath, subDir.Name))
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -127,7 +146,7 @@ func compress(cmd *cobra.Command, args []string) {
 	// Download file from filer if necessary
 	if filerAddr != "" {
 		localDir := fmt.Sprintf("/tmp/logweed/uncompressed/%v", time.Now())
-		err := downloadDir(dir, localDir)
+		err := weedDownload(dir, localDir)
 		if err != nil {
 			return
 		}
