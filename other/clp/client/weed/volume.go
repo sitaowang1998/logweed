@@ -75,18 +75,18 @@ func VolumeDownloadFile(volumeAddr string, fid string, filepath string) error {
 }
 
 type clgSearchRequest struct {
-	Fid         string   `json:"fid"`
-	NumSegments int      `json:"nsegs"`
-	ClgCmd      []string `json:"clgcmd"`
-	ArchiveId   string   `json:"archid"`
+	Fid         string `json:"fid"`
+	NumSegments string `json:"nsegs"`
+	ClgCmd      string `json:"clgcmd"`
+	ArchiveId   string `json:"archid"`
 }
 
-func ClgSearch(volumeAddr string, fid string, numSegments int, bts uint64, ets uint64, archiveID string) ([]string, error) {
+func ClgSearch(volumeAddr string, fid string, query string, numSegments int, bts uint64, ets uint64, archiveID string) ([]string, error) {
 	// Generate json request
 	jsonBytes, err := json.Marshal(clgSearchRequest{
 		Fid:         fid,
-		NumSegments: numSegments,
-		ClgCmd:      []string{"--tge", strconv.FormatUint(bts, 10), "--tle", strconv.FormatUint(ets, 10)},
+		NumSegments: strconv.FormatInt(int64(numSegments), 10),
+		ClgCmd:      fmt.Sprintf("%v --tge %v --tle %v", query, bts, ets),
 		ArchiveId:   archiveID,
 	})
 	if err != nil {

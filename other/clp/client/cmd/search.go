@@ -61,7 +61,7 @@ func parseTimeStamp(ts string) (uint64, error) {
 	return 0, nil
 }
 
-func searchArchiveInVolume(archive *metadata.ArchiveMetadata, bts uint64, ets uint64, results []string, mutex *sync.Mutex, wg *sync.WaitGroup) {
+func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts uint64, ets uint64, results []string, mutex *sync.Mutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 	// Get volume ip address from master
 	ips, err := weed.LookupVolume(MasterAddr, archive.Fid)
@@ -71,7 +71,7 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, bts uint64, ets ui
 	// Send search request with a random ip
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	ip := ips[random.Intn(len(ips))]
-	result, err := weed.ClgSearch(ip.PublicUrl, archive.Fid, archive.NumSegments, bts, ets, archive.ArchiveID)
+	result, err := weed.ClgSearch(ip.PublicUrl, archive.Fid, query, archive.NumSegments, bts, ets, archive.ArchiveID)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -117,7 +117,7 @@ func search(cmd *cobra.Command, args []string) {
 	var wg sync.WaitGroup
 	for i := 0; i < len(archives); i++ {
 		wg.Add(1)
-		go searchArchiveInVolume(&archives[i], bts, ets, results, &mutex, &wg)
+		go searchArchiveInVolume(&archives[i], query, bts, ets, results, &mutex, &wg)
 	}
 	wg.Wait()
 
