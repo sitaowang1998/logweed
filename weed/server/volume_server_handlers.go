@@ -3,6 +3,7 @@ package weed_server
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -10,9 +11,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-	"unsafe"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/seaweedfs/seaweedfs/weed/storage/backend"
 	"github.com/seaweedfs/seaweedfs/weed/storage/needle"
@@ -173,7 +171,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 	if !succ {
 		panic("not disk file")
 	}
-	fd := file_d.File.Fd()
+	// fd := file_d.File.Fd()
 
 	// Delete fid and nseg from data
 	delete(data, "fid")
@@ -221,21 +219,33 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 			archPath+"/"+clp.CLG_file_name[i], clgfiles.Files[i].Offset,
 			clgfiles.Files[i].Size)
 		// Call copy_file_range
-		glog.V(0).Infof("Copy file range: From: %d, To: %d, offset: %d, size: %d",
-			fd, target.Fd(),
-			clgfiles.Files[i].Offset, clgfiles.Files[i].Size)
-		_, _, errno := unix.Syscall6(
-			unix.SYS_COPY_FILE_RANGE,
-			uintptr(fd), // Source file descriptor
-			uintptr(unsafe.Pointer(&(clgfiles.Files[i].Offset))), // Source file offset
-			uintptr(target.Fd()),            // Destination file descriptor
-			0,                               // Destination file offset (0 for appending)
-			uintptr(clgfiles.Files[i].Size), // Number of bytes to copy
-			0,                               // Copy flags (0 for default)
-		)
-		if errno != 0 {
-			err = errno
+		// glog.V(0).Infof("Copy file range: From: %d, To: %d, offset: %d, size: %d",
+		// 	fd, target.Fd(),
+		// 	clgfiles.Files[i].Offset, clgfiles.Files[i].Size)
+		// _, _, errno := unix.Syscall6(
+		// 	unix.SYS_COPY_FILE_RANGE,
+		// 	uintptr(fd), // Source file descriptor
+		// 	uintptr(unsafe.Pointer(&(clgfiles.Files[i].Offset))), // Source file offset
+		// 	uintptr(target.Fd()),            // Destination file descriptor
+		// 	0,                               // Destination file offset (0 for appending)
+		// 	uintptr(clgfiles.Files[i].Size), // Number of bytes to copy
+		// 	0,                               // Copy flags (0 for default)
+		// )
+		// if errno != 0 {
+		// 	err = errno
+		// 	glog.V(0).Infof("Error: %s", err.Error())
+		// }
+
+		// Alternative: use io.CopyN
+		file_d.File.Seek(int64(clgfiles.Files[i].Offset), 0)
+		copied, err := io.CopyN(target, file_d.File, int64(clgfiles.Files[i].Size))
+		if err != nil {
 			glog.V(0).Infof("Error: %s", err.Error())
+			panic(err)
+		}
+		if copied != int64(clgfiles.Files[i].Size) {
+			glog.V(0).Infof("Error: copied %d bytes, expected %d bytes", copied, clgfiles.Files[i].Size)
+			panic(err)
 		}
 	}
 
@@ -280,19 +290,32 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 			seg.Size)
 		// Call copy_file_range
 
-		_, _, errno := unix.Syscall6(
-			unix.SYS_COPY_FILE_RANGE,
-			uintptr(fd),                            // Source file descriptor
-			uintptr(unsafe.Pointer(&(seg.Offset))), // Source file offset
-			uintptr(target.Fd()),                   // Destination file descriptor
-			0,                                      // Destination file offset (0 for appending)
-			uintptr(seg.Size),                      // Number of bytes to copy
-			0,                                      // Copy flags (0 for default)
-		)
-		if errno != 0 {
-			err = errno
+		// Alternative: use io.CopyN
+		file_d.File.Seek(int64(seg.Offset), 0)
+		copied, err := io.CopyN(target, file_d.File, int64(seg.Size))
+		if err != nil {
 			glog.V(0).Infof("Error: %s", err.Error())
+			panic(err)
 		}
+		if copied != int64(seg.Size) {
+			glog.V(0).Infof("Error: copied %d bytes, expected %d bytes", copied, seg.Size)
+			panic(err)
+		}
+
+		// Use copy_file_range syscall
+		// _, _, errno := unix.Syscall6(
+		// 	unix.SYS_COPY_FILE_RANGE,
+		// 	uintptr(fd),                            // Source file descriptor
+		// 	uintptr(unsafe.Pointer(&(seg.Offset))), // Source file offset
+		// 	uintptr(target.Fd()),                   // Destination file descriptor
+		// 	0,                                      // Destination file offset (0 for appending)
+		// 	uintptr(seg.Size),                      // Number of bytes to copy
+		// 	0,                                      // Copy flags (0 for default)
+		// )
+		// if errno != 0 {
+		// 	err = errno
+		// 	glog.V(0).Infof("Error: %s", err.Error())
+		// }
 	}
 	glog.V(0).Infof("Start calling clg")
 	// Spawn the clg process
