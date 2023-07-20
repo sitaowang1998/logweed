@@ -78,7 +78,7 @@ func ClgSearch(volumeAddr string, fid string, query string, numSegments int, bts
 	// Generate json request
 	clgSearchMap := make(map[string]string)
 	clgSearchMap["fid"] = fid
-	clgSearchMap["nseg"] = string(numSegments)
+	clgSearchMap["nseg"] = fmt.Sprintf("%v", numSegments)
 	clgSearchMap["archid"] = archiveID
 	clgSearchMap[query] = ""
 	clgSearchMap["--tge"] = strconv.FormatUint(bts, 10)
