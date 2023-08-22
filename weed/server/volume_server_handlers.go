@@ -126,6 +126,13 @@ func getContentLength(r *http.Request) int64 {
 	return 0
 }
 
+type ClgSearchRequest struct {
+	Fid         string   `json:"fid"`
+	NumSegments uint64   `json:"nseg"`
+	ArchiveID   string   `json:"archid"`
+	Args        []string `json:"args"`
+}
+
 func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 	n := new(needle.Needle)
 	w.Header().Set("Server", "SeaweedFS Volume "+util.VERSION)
@@ -133,57 +140,46 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
-	var raw json.RawMessage
-	err := json.NewDecoder(r.Body).Decode(&raw)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	// Convert the raw JSON message into a map[string]interface{}
-	var data map[string]string
-	err = json.Unmarshal(raw, &data)
-	if err != nil {
+	// Decode json request
+	decoder := json.NewDecoder(r.Body)
+	var request ClgSearchRequest
+	if err := decoder.Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// find the clg files
-	// parse the fid string
+	// Find the clg files
 	var path string
-	path = data["fid"]
-	archId := data["archid"]
+	path = request.Fid
+	archId := request.ArchiveID
 	glog.V(0).Infof("Got fid: %s", path)
-	// sepIndex := strings.LastIndex(path, "/")
+	// Parse fid
 	commaIndex := strings.LastIndex(path, ",")
 	vid, err := strconv.ParseUint(path[:commaIndex], 10, 64)
 	fid := path[commaIndex+1:]
 	err = n.ParsePath(fid)
 	if err != nil {
-		glog.V(2).Infof("parsing fid %s: %v", r.URL.Path, err)
+		glog.V(2).Infof("parsing fid %s: %volume", r.URL.Path, err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	nseg, err := strconv.ParseUint(data["nseg"], 10, 64)
-	v := vs.store.GetVolume(needle.VolumeId(vid))
-	nm := v.GetNm()
+	numSegments := request.NumSegments
+	volume := vs.store.GetVolume(needle.VolumeId(vid))
+	nm := volume.GetNm()
 
-	file_d, succ := v.DataBackend.(*backend.DiskFile)
-	if !succ {
+	diskFile, ok := volume.DataBackend.(*backend.DiskFile)
+	if !ok {
 		panic("not disk file")
 	}
-	// fd := file_d.File.Fd()
-
-	// Delete fid and nseg from data
-	delete(data, "fid")
-	delete(data, "nseg")
-	delete(data, "archid")
 
 	// Create the clg directory
 	archPath := "/mnt/ramdisk/archives/" + archId
 	err = os.MkdirAll(archPath, 0777)
 	if err != nil {
-		panic(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+	defer os.RemoveAll(archPath)
 	glog.V(0).Infof("fid: %x dir: %s", fid, archPath)
 	// for each archive data, get the offset and size
 	var clgfiles clp.ClgFiles
@@ -199,7 +195,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		readOffset := nv.Offset.ToActualOffset() + types.NeedleHeaderSize
 		// read the size
 		buf := make([]byte, 4)
-		_, err = file_d.File.ReadAt(buf, int64(readOffset))
+		_, err = diskFile.File.ReadAt(buf, int64(readOffset))
 		if err != nil {
 			panic(err)
 		}
@@ -212,7 +208,8 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		target, err := os.Create(archPath + "/" + clp.CLG_file_name[i])
 		if err != nil {
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		defer target.Close()
 		glog.V(0).Infof("created file: %s, offset: %d, size: %d",
@@ -237,36 +234,38 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// }
 
 		// Alternative: use io.CopyN
-		file_d.File.Seek(int64(clgfiles.Files[i].Offset), 0)
-		copied, err := io.CopyN(target, file_d.File, int64(clgfiles.Files[i].Size))
+		diskFile.File.Seek(int64(clgfiles.Files[i].Offset), 0)
+		copied, err := io.CopyN(target, diskFile.File, int64(clgfiles.Files[i].Size))
 		if err != nil {
 			glog.V(0).Infof("Error: %s", err.Error())
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		if copied != int64(clgfiles.Files[i].Size) {
 			glog.V(0).Infof("Error: copied %d bytes, expected %d bytes", copied, clgfiles.Files[i].Size)
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	}
 
 	err = os.MkdirAll(archPath+"/s/", 0777)
 	if err != nil {
-
+		glog.V(0).Infof("Error: cannot create directory %s", archPath+"/s/")
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	// for each archive segment, get the offset and size
-	for i := uint64(6); i < 6+nseg; i++ {
+	for i := uint64(6); i < 6+numSegments; i++ {
 		nv, ok := nm.Get(types.NeedleId(uint64(n.Id) + i))
 		if !ok || nv.Offset.IsZero() {
-			// TODO: reply with error
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		readOffset := nv.Offset.ToActualOffset() + types.NeedleHeaderSize
 		// read the size
 		buf := make([]byte, 4)
-		_, err = file_d.File.ReadAt(buf, int64(readOffset))
+		_, err = diskFile.File.ReadAt(buf, int64(readOffset))
 		if err != nil {
 			panic(err)
 		}
@@ -282,7 +281,8 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 
 		target, err := os.Create(archPath + "/s/" + strconv.FormatUint(i-6, 10))
 		if err != nil {
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		defer target.Close()
 		glog.V(0).Infof("created file: %s, offset: %d, size: %d",
@@ -291,15 +291,17 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// Call copy_file_range
 
 		// Alternative: use io.CopyN
-		file_d.File.Seek(int64(seg.Offset), 0)
-		copied, err := io.CopyN(target, file_d.File, int64(seg.Size))
+		diskFile.File.Seek(int64(seg.Offset), 0)
+		copied, err := io.CopyN(target, diskFile.File, int64(seg.Size))
 		if err != nil {
 			glog.V(0).Infof("Error: %s", err.Error())
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		if copied != int64(seg.Size) {
 			glog.V(0).Infof("Error: copied %d bytes, expected %d bytes", copied, seg.Size)
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		// Use copy_file_range syscall
@@ -317,20 +319,15 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// 	glog.V(0).Infof("Error: %s", err.Error())
 		// }
 	}
+	// Create dummy db file
+	// TODO
+
 	glog.V(0).Infof("Start calling clg")
 	// Spawn the clg process
 	clg_bin := "/home/robin/clp_private-step_by_step_refactor/clg"
 	var args []string
 	args = append(args, "/mnt/ramdisk/archives/")
-	for k, v := range data {
-		var arg string
-		if v == "" {
-			arg = k
-		} else {
-			arg = k + "=" + v
-		}
-		args = append(args, arg)
-	}
+	args = append(args, request.Args...)
 
 	cmd := exec.Command(clg_bin, args...)
 
