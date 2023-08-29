@@ -10,7 +10,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -74,16 +73,18 @@ func VolumeDownloadFile(volumeAddr string, fid string, filepath string) error {
 	return err
 }
 
-func ClgSearch(volumeAddr string, fid string, query string, numSegments int, bts uint64, ets uint64, archiveID string) ([]string, error) {
+type ClgSearchRequest struct {
+	Fid              string   `json:"fid"`
+	NumSegments      uint64   `json:"nseg"`
+	ArchiveID        string   `json:"archid"`
+	UncompressedSize uint64   `json:"uncompressed_size"`
+	Size             uint64   `json:"size"`
+	Args             []string `json:"args"`
+}
+
+func ClgSearch(volumeAddr string, request ClgSearchRequest) ([]string, error) {
 	// Generate json request
-	clgSearchMap := make(map[string]string)
-	clgSearchMap["fid"] = fid
-	clgSearchMap["nseg"] = fmt.Sprintf("%v", numSegments)
-	clgSearchMap["archid"] = archiveID
-	clgSearchMap[query] = ""
-	clgSearchMap["--tge"] = strconv.FormatUint(bts, 10)
-	clgSearchMap["--tle"] = strconv.FormatUint(ets, 10)
-	jsonBytes, err := json.Marshal(clgSearchMap)
+	jsonBytes, err := json.Marshal(request)
 	if err != nil {
 		log.Println("Generate json search request fails.", err)
 		return nil, err
