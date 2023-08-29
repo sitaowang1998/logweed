@@ -1,6 +1,7 @@
 package weed_server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"github.com/seaweedfs/seaweedfs/weed/security"
 	"github.com/seaweedfs/seaweedfs/weed/stats"
 
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/seaweedfs/seaweedfs/weed/clp"
 )
 
@@ -127,10 +129,49 @@ func getContentLength(r *http.Request) int64 {
 }
 
 type ClgSearchRequest struct {
-	Fid         string   `json:"fid"`
-	NumSegments uint64   `json:"nseg"`
-	ArchiveID   string   `json:"archid"`
-	Args        []string `json:"args"`
+	Fid              string   `json:"fid"`
+	NumSegments      uint64   `json:"nseg"`
+	ArchiveID        string   `json:"archid"`
+	UncompressedSize uint64   `json:"uncompressed_size"`
+	Size             uint64   `json:"size"`
+	Args             []string `json:"args"`
+}
+
+const createArchivesQuery = `
+CREATE TABLE archives (
+    pagination_id VARCHAR(64) NOT NULL AUTO_INCREMENT,
+    id VARCHAR(64) NOT NULL,
+    storage_id VARCHAR(64) NOT NULL,
+    uncompressed_size BIGINT NOT NULL,
+    size BIGINT NOT NULL,
+    creator_id VARCHAR(64) NOT NULL,
+    creation_ix INT NOT NULL,
+    KEY archives_creation_order (creator_id,creation_ix) USING BTREE,
+    UNIQUE KEY archive_id (id) USING BTREE,
+    PRIMARY KEY (pagination_id)
+);
+`
+
+const insertArchiveQuery = `
+INSERT INTO archives(storage_id, uncompressed_size, size, creator_id, creation_ix) VALUES(
+	?, ?, ?, ?, ?
+);
+`
+
+func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uint64) error {
+	filePath := dir + "/metadata.db"
+	db, err := sql.Open("sqlite3", filePath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.Exec(createArchivesQuery); err != nil {
+		return err
+	}
+	if _, err := db.Exec(insertArchiveQuery, archiveID, uncompressedSize, size, "", 0); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +361,11 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// }
 	}
 	// Create dummy db file
-	// TODO
+	err = createCLGDB("/mnt/ramdisk/archives", archId, request.UncompressedSize, request.Size)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	glog.V(0).Infof("Start calling clg")
 	// Spawn the clg process
