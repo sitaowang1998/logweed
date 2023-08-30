@@ -137,19 +137,18 @@ type ClgSearchRequest struct {
 	Args             []string `json:"args"`
 }
 
-const createArchivesQuery = `
+const createArchiveQuery = `
 CREATE TABLE archives (
-    pagination_id VARCHAR(64) NOT NULL AUTO_INCREMENT,
-    id VARCHAR(64) NOT NULL,
-    storage_id VARCHAR(64) NOT NULL,
-    uncompressed_size BIGINT NOT NULL,
-    size BIGINT NOT NULL,
-    creator_id VARCHAR(64) NOT NULL,
-    creation_ix INT NOT NULL,
-    KEY archives_creation_order (creator_id,creation_ix) USING BTREE,
-    UNIQUE KEY archive_id (id) USING BTREE,
-    PRIMARY KEY (pagination_id)
-);
+    id TEXT PRIMARY KEY,
+    uncompressed_size INTEGER,
+    size INTEGER,
+    creator_id TEXT,
+    creation_ix INTEGER
+) WITHOUT ROWID;
+`
+
+const createArchiveIndexQuery = `
+CREATE INDEX archives_creation_order ON archives (creator_id,creation_ix);
 `
 
 const insertArchiveQuery = `
@@ -165,10 +164,15 @@ func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uin
 		return err
 	}
 	defer db.Close()
-	if _, err := db.Exec(createArchivesQuery); err != nil {
+	if _, err := db.Exec(createArchiveQuery); err != nil {
+		glog.V(0).Infoln("Create table fail", err)
 		return err
 	}
+	if _, err := db.Exec(createArchiveIndexQuery); err != nil {
+		glog.V(0).Infoln("Create index fail", err)
+	}
 	if _, err := db.Exec(insertArchiveQuery, archiveID, uncompressedSize, size, "", 0); err != nil {
+		glog.V(0).Infoln("Insert table fail", err)
 		return err
 	}
 	return nil
@@ -378,7 +382,9 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		panic(err)
+		glog.V(0).Infoln("Clg search fail", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	// Send the output back to the client
