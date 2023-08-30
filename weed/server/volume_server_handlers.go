@@ -137,6 +137,8 @@ type ClgSearchRequest struct {
 	Args             []string `json:"args"`
 }
 
+const dropArchiveQuery = `DROP TABLE IF EXISTS archives;`
+
 const createArchiveQuery = `
 CREATE TABLE archives (
     id TEXT PRIMARY KEY,
@@ -164,6 +166,10 @@ func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uin
 		return err
 	}
 	defer db.Close()
+	if _, err := db.Exec(dropArchiveQuery); err != nil {
+		glog.V(0).Infoln("Drop table fail", err)
+		return err
+	}
 	if _, err := db.Exec(createArchiveQuery); err != nil {
 		glog.V(0).Infoln("Create table fail", err)
 		return err
@@ -224,7 +230,6 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer os.RemoveAll(archPath)
 	glog.V(0).Infof("fid: %x dir: %s", fid, archPath)
 	// for each archive data, get the offset and size
 	var clgfiles clp.ClgFiles
@@ -373,7 +378,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 
 	glog.V(0).Infof("Start calling clg")
 	// Spawn the clg process
-	clg_bin := "/home/robin/clp_private-step_by_step_refactor/clg"
+	clg_bin := "/home/sitao/clp/bin/clg"
 	var args []string
 	args = append(args, "/mnt/ramdisk/archives/")
 	args = append(args, request.Args...)
