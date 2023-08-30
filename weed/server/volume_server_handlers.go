@@ -152,7 +152,7 @@ CREATE INDEX archives_creation_order ON archives (creator_id,creation_ix);
 `
 
 const insertArchiveQuery = `
-INSERT INTO archives(storage_id, uncompressed_size, size, creator_id, creation_ix) VALUES(
+INSERT INTO archives(id, uncompressed_size, size, creator_id, creation_ix) VALUES(
 	?, ?, ?, ?, ?
 );
 `
