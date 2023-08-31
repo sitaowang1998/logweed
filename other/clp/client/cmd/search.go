@@ -61,7 +61,7 @@ func parseTimeStamp(ts string) (uint64, error) {
 	return 0, nil
 }
 
-func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts uint64, ets uint64, results []string, mutex *sync.Mutex, wg *sync.WaitGroup) {
+func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 	// Get volume ip address from master
 	ips, err := weed.LookupVolume(MasterAddr, archive.Fid)
@@ -89,7 +89,7 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 		os.Exit(1)
 	}
 	mutex.Lock()
-	results = append(results, result...)
+	*results = append(*results, result...)
 	mutex.Unlock()
 }
 
@@ -130,7 +130,7 @@ func search(cmd *cobra.Command, args []string) {
 	var wg sync.WaitGroup
 	for i := 0; i < len(archives); i++ {
 		wg.Add(1)
-		go searchArchiveInVolume(&archives[i], query, bts, ets, results, &mutex, &wg)
+		go searchArchiveInVolume(&archives[i], query, bts, ets, &results, &mutex, &wg)
 	}
 	wg.Wait()
 
