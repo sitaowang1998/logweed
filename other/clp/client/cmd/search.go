@@ -8,7 +8,6 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -133,9 +132,6 @@ func search(cmd *cobra.Command, args []string) {
 		go searchArchiveInVolume(&archives[i], query, bts, ets, &results, &mutex, &wg)
 	}
 	wg.Wait()
-
-	// sort the results
-	sort.Strings(results)
 
 	for _, line := range results {
 		fmt.Println(line)
