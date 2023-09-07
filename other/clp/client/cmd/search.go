@@ -62,11 +62,17 @@ func parseTimeStamp(ts string) (uint64, error) {
 
 func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
 	defer wg.Done()
+
+	startTime := time.Now()
+
 	// Get volume ip address from master
 	ips, err := weed.LookupVolume(MasterAddr, archive.Fid)
 	if err != nil {
 		os.Exit(1)
 	}
+
+	masterTime := time.Now()
+
 	// Send search request with a random ip
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	ip := ips[random.Intn(len(ips))]
@@ -87,6 +93,15 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 	if err != nil {
 		os.Exit(1)
 	}
+
+	volumeTime := time.Now()
+
+	log.Printf("Total search: %d ms. Master: %d ms. Volume: %d ms.\n",
+		volumeTime.Sub(startTime).Milliseconds(),
+		masterTime.Sub(startTime).Milliseconds(),
+		volumeTime.Sub(masterTime).Milliseconds(),
+	)
+
 	mutex.Lock()
 	*results = append(*results, result...)
 	mutex.Unlock()
@@ -117,11 +132,13 @@ func search(cmd *cobra.Command, args []string) {
 
 	connectMetadataServer()
 
+	log.Println("Connected to metadata db.")
 	// Request archives from metadata service
 	archives, err := MetadataService.Search(tag, bts, ets)
 	if err != nil {
 		return
 	}
+	log.Printf("Need to search %d archives.\n", len(archives))
 
 	// Search in parallel
 	results := make([]string, 0)
@@ -132,6 +149,7 @@ func search(cmd *cobra.Command, args []string) {
 		go searchArchiveInVolume(&archives[i], query, bts, ets, &results, &mutex, &wg)
 	}
 	wg.Wait()
+	log.Println("Search complete.")
 
 	for _, line := range results {
 		fmt.Println(line)
