@@ -191,6 +191,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
+	glog.V(0).Infoln("Clg: Receive Clg request.")
 	// Decode json request
 	decoder := json.NewDecoder(r.Body)
 	var request ClgSearchRequest
@@ -224,7 +225,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create the clg directory
-	archPath := "/mnt/ramdisk/archives/" + archId
+	archPath := "/mnt/ramdisk/archives/" + archId + "/" + archId
 	err = os.MkdirAll(archPath, 0777)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -369,18 +370,21 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// 	glog.V(0).Infof("Error: %s", err.Error())
 		// }
 	}
+	glog.V(0).Infoln("Clg: Copy file completes.")
+
 	// Create dummy db file
-	err = createCLGDB("/mnt/ramdisk/archives", archId, request.UncompressedSize, request.Size)
+	err = createCLGDB("/mnt/ramdisk/archives/"+archId, archId, request.UncompressedSize, request.Size)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	glog.V(0).Infof("Start calling clg")
+	glog.V(0).Infoln("Clg: Create dummy db completes.")
+
 	// Spawn the clg process
 	clg_bin := "/home/sitao/clp/bin/clg"
 	var args []string
-	args = append(args, "/mnt/ramdisk/archives/")
+	args = append(args, "/mnt/ramdisk/archives/"+archId)
 	args = append(args, request.Args...)
 
 	cmd := exec.Command(clg_bin, args...)
@@ -391,10 +395,11 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	glog.V(0).Infoln("Clg: Search completes.")
 
 	// Send the output back to the client
 	w.Write(output)
-
+	glog.V(0).Infoln("Clg: Send reply completes.")
 }
 
 func (vs *VolumeServer) publicReadOnlyHandler(w http.ResponseWriter, r *http.Request) {
