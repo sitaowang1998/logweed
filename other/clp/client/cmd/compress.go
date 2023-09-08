@@ -142,6 +142,7 @@ func compress(cmd *cobra.Command, args []string) {
 	}
 
 	connectMetadataServer()
+	log.Println("Connected to metadata server.")
 
 	// Download file from filer if necessary
 	if filerAddr != "" {
@@ -151,6 +152,7 @@ func compress(cmd *cobra.Command, args []string) {
 			return
 		}
 		dir = localDir
+		log.Println("Downloaded files from seaweedFS.")
 	}
 
 	// Run compression
@@ -160,6 +162,7 @@ func compress(cmd *cobra.Command, args []string) {
 		log.Println("Clp compress fails.")
 		return
 	}
+	log.Println("Clp compressed finishes.")
 
 	// Generate metadata
 	archiveMetadatas, fileMetadatas, err := GetMetadata(filepath.Join(compressedDir, "metadata.db"))
@@ -169,6 +172,7 @@ func compress(cmd *cobra.Command, args []string) {
 	for i, _ := range fileMetadatas {
 		fileMetadatas[i].Tag = tag
 	}
+	log.Println("Got metadata from db.")
 
 	// Upload archives to volume servers
 	archiveDir, err := os.Open(compressedDir)
@@ -191,6 +195,7 @@ func compress(cmd *cobra.Command, args []string) {
 		go uploadArchive(filepath.Join(compressedDir, archive), i, fids, numSegments, &wg)
 	}
 	wg.Wait()
+	log.Println("Uploaded archives.")
 
 	// Update metadata with fids and number of segments
 	for i, archiveID := range archives {
@@ -208,6 +213,7 @@ func compress(cmd *cobra.Command, args []string) {
 	if err != nil {
 		return
 	}
+	log.Println("Updated metadata.")
 }
 
 var archiveQuery = "SELECT id, uncompressed_size, size FROM archives"
