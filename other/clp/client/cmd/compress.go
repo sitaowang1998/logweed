@@ -200,6 +200,10 @@ func compress(cmd *cobra.Command, args []string) {
 	}
 
 	// Upload metadata
+	err = MetadataService.InitService()
+	if err != nil {
+		return
+	}
 	err = MetadataService.AddMetadata(archiveMetadatas, fileMetadatas)
 	if err != nil {
 		return
