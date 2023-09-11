@@ -11,8 +11,8 @@ type ArchiveMetadata struct {
 type FileMetadata struct {
 	FilePath          string
 	Tag               string
-	BeginTimestamp    uint64
-	EndTimestamp      uint64
+	BeginTimestamp    int64
+	EndTimestamp      int64
 	UncompressedBytes uint64
 	NumMessages       uint64
 	ArchiveID         string
