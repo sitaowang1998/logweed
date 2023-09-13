@@ -39,18 +39,18 @@ type FileKey struct {
 	PublicUrl string `json:"publicUrl"`
 }
 
-func AssignFileKey(masterAddr string, count int) (*FileKey, error) {
+func AssignFileKey(masterAddr string, count int) (FileKey, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%v/dir/assign?count=%v", masterAddr, count))
 	if err != nil {
 		log.Println("Assign file key fails.", err)
-		return nil, err
+		return FileKey{}, err
 	}
 	defer resp.Body.Close()
 	decoder := json.NewDecoder(resp.Body)
-	k := new(FileKey)
+	var k FileKey
 	if err := decoder.Decode(&k); err != nil {
 		log.Println("Parse assigned file key fails.", err)
-		return nil, err
+		return FileKey{}, err
 	}
 	return k, nil
 }
