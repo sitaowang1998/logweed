@@ -42,23 +42,23 @@ func (db *MetaMySQL) Close() error {
 
 var qCreateArchives = `CREATE TABLE IF NOT EXISTS archives (
     id BIGINT NOT NULL AUTO_INCREMENT,
-    uncompressed_size BIGINT UNSIGNED,
-    size BIGINT UNSIGNED,
-    fid VARCHAR(33),
-    num_segments INT,
-    archive_id VARCHAR(64) UNIQUE,
+    uncompressed_size BIGINT UNSIGNED NOT NULL,
+    size BIGINT UNSIGNED NOT NULL,
+    fid VARCHAR(33) NOT NULL,
+    num_segments INT NOT NULL,
+    archive_id VARCHAR(64) UNIQUE NOT NULL,
     PRIMARY KEY (id)
 );`
 
 var qCreateFiles = `CREATE TABLE IF NOT EXISTS files (
     id BIGINT NOT NULL AUTO_INCREMENT,
-    file_path VARCHAR(255) NOT NULL UNIQUE,
-    tag VARCHAR(255),
-    begin_timestamp BIGINT UNSIGNED,
-    end_timestamp BIGINT UNSIGNED,
-    archive_id VARCHAR(64),
-    uncompressed_bytes BIGINT UNSIGNED,
-    num_messages BIGINT UNSIGNED,
+    file_path VARCHAR(255) NOT NULL,
+    tag VARCHAR(255) NOT NULL,
+    begin_timestamp BIGINT NOT NULL,
+    end_timestamp BIGINT NOT NULL,
+    archive_id VARCHAR(64) NOT NULL,
+    uncompressed_bytes BIGINT UNSIGNED NOT NULL,
+    num_messages BIGINT UNSIGNED NOT NULL,
     PRIMARY KEY (id),
     INDEX (tag),
     FOREIGN KEY (archive_id) REFERENCES archives(archive_id)
