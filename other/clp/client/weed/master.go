@@ -2,6 +2,7 @@ package weed
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -51,6 +52,10 @@ func AssignFileKey(masterAddr string, count int) (FileKey, error) {
 	if err := decoder.Decode(&k); err != nil {
 		log.Println("Parse assigned file key fails.", err)
 		return FileKey{}, err
+	}
+	if k.Count != count {
+		log.Printf("Assigned file key count not match. Get %v, expect %v.\n", k.Count, count)
+		return k, errors.New("file count not match")
 	}
 	return k, nil
 }
