@@ -191,7 +191,6 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
-	glog.V(0).Infoln("Clg: Receive Clg request.")
 	// Decode json request
 	decoder := json.NewDecoder(r.Body)
 	var request ClgSearchRequest
@@ -199,12 +198,12 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	glog.V(0).Infof("Clg: Receive Clg request for %v\n", request.Fid)
 
 	// Find the clg files
 	var path string
 	path = request.Fid
 	archId := request.ArchiveID
-	glog.V(0).Infof("Got fid: %s", path)
 	// Parse fid
 	commaIndex := strings.LastIndex(path, ",")
 	vid, err := strconv.ParseUint(path[:commaIndex], 10, 64)
@@ -231,7 +230,6 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	glog.V(0).Infof("fid: %x dir: %s", fid, archPath)
 	// for each archive data, get the offset and size
 	var clgfiles clp.ClgFiles
 	for i := uint64(0); i < 6; i++ {
@@ -263,9 +261,6 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer target.Close()
-		glog.V(0).Infof("created file: %s, offset: %d, size: %d",
-			archPath+"/"+clp.CLG_file_name[i], clgfiles.Files[i].Offset,
-			clgfiles.Files[i].Size)
 		// Call copy_file_range
 		// glog.V(0).Infof("Copy file range: From: %d, To: %d, offset: %d, size: %d",
 		// 	fd, target.Fd(),
@@ -370,7 +365,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// 	glog.V(0).Infof("Error: %s", err.Error())
 		// }
 	}
-	glog.V(0).Infoln("Clg: Copy file completes.")
+	glog.V(0).Infof("Clg: Copy file completes for %v\n", request.Fid)
 
 	// Create dummy db file
 	err = createCLGDB("/mnt/ramdisk/archives/"+archId, archId, request.UncompressedSize, request.Size)
@@ -379,15 +374,15 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	glog.V(0).Infoln("Clg: Create dummy db completes.")
+	glog.V(0).Infof("Clg: Create dummy db completes for %v\n", request.Fid)
 
 	// Spawn the clg process
-	clg_bin := "/home/sitao/clp/bin/clg"
+	clgBin := "/home/sitao/clp/bin/clg"
 	var args []string
 	args = append(args, "/mnt/ramdisk/archives/"+archId)
 	args = append(args, request.Args...)
 
-	cmd := exec.Command(clg_bin, args...)
+	cmd := exec.Command(clgBin, args...)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -395,11 +390,11 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	glog.V(0).Infoln("Clg: Search completes.")
+	glog.V(0).Infof("Clg: Search completes for %v\n", request.Fid)
 
 	// Send the output back to the client
 	w.Write(output)
-	glog.V(0).Infoln("Clg: Send reply completes.")
+	glog.V(0).Infof("Clg: Send reply completes for %v\n", request.Fid)
 }
 
 func (vs *VolumeServer) publicReadOnlyHandler(w http.ResponseWriter, r *http.Request) {
