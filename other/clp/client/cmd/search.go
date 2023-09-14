@@ -78,10 +78,11 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 	ip := ips[random.Intn(len(ips))]
 	var args []string
 	args = append(args, query)
-	args = append(args, "--tge")
-	args = append(args, strconv.FormatUint(bts, 10))
-	args = append(args, "--tle")
-	args = append(args, strconv.FormatUint(ets, 10))
+	// For now, remove the timestamp filter for clg
+	// args = append(args, "--tge")
+	// args = append(args, strconv.FormatUint(bts, 10))
+	// args = append(args, "--tle")
+	// args = append(args, strconv.FormatUint(ets, 10))
 	result, err := weed.ClgSearch(ip.PublicUrl, weed.ClgSearchRequest{
 		Fid:              archive.Fid,
 		NumSegments:      uint64(archive.NumSegments),
