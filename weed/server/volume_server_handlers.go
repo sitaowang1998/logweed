@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -184,6 +185,8 @@ func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uin
 	return nil
 }
 
+var clgCopyFileMutex sync.Mutex
+
 func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 	n := new(needle.Needle)
 	w.Header().Set("Server", "SeaweedFS Volume "+util.VERSION)
@@ -280,8 +283,10 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// }
 
 		// Alternative: use io.CopyN
+		clgCopyFileMutex.Lock()
 		diskFile.File.Seek(int64(clgfiles.Files[i].Offset), 0)
 		copied, err := io.CopyN(target, diskFile.File, int64(clgfiles.Files[i].Size))
+		clgCopyFileMutex.Unlock()
 		if err != nil {
 			glog.V(0).Infof("Error: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -337,8 +342,10 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// Call copy_file_range
 
 		// Alternative: use io.CopyN
+		clgCopyFileMutex.Lock()
 		diskFile.File.Seek(int64(seg.Offset), 0)
 		copied, err := io.CopyN(target, diskFile.File, int64(seg.Size))
+		clgCopyFileMutex.Unlock()
 		if err != nil {
 			glog.V(0).Infof("Error: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
