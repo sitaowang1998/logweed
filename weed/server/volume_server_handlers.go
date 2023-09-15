@@ -242,7 +242,6 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 			return
 		}
-		glog.V(0).Infoln("Got needle: ", nv)
 
 		readOffset := nv.Offset.ToActualOffset() + types.NeedleHeaderSize
 		// read the size
@@ -336,9 +335,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer target.Close()
-		glog.V(0).Infof("created file: %s, offset: %d, size: %d",
-			archPath+"/s/"+strconv.FormatUint(i-6, 10), seg.Offset,
-			seg.Size)
+
 		// Call copy_file_range
 
 		// Alternative: use io.CopyN
@@ -393,7 +390,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		glog.V(0).Infoln("Clg search fail", err)
+		glog.V(0).Infoln("Clg search fail for "+request.Fid, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
