@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
@@ -47,8 +48,13 @@ func AssignFileKey(masterAddr string, count int) (FileKey, error) {
 		return FileKey{}, err
 	}
 	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Read assign file key response fails.", err)
+		return FileKey{}, err
+	}
 	var k FileKey
-	err = json.NewDecoder(resp.Body).Decode(&k)
+	err = json.Unmarshal(body, &k)
 	if err != nil {
 		log.Println("Parse assigned file key fails.", err)
 		return FileKey{}, err
