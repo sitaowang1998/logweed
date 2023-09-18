@@ -47,9 +47,8 @@ func AssignFileKey(masterAddr string, count int) (FileKey, error) {
 		return FileKey{}, err
 	}
 	defer resp.Body.Close()
-	decoder := json.NewDecoder(resp.Body)
 	var k FileKey
-	err = decoder.Decode(&k)
+	err = json.NewDecoder(resp.Body).Decode(&k)
 	if err != nil {
 		log.Println("Parse assigned file key fails.", err)
 		return FileKey{}, err
