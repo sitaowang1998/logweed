@@ -109,6 +109,7 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 }
 
 func search(cmd *cobra.Command, args []string) {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	// Parse the arguments and flags
 	tag := args[0]
 	query := args[1]
