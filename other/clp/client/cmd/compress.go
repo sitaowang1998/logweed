@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -108,12 +109,18 @@ func uploadArchive(archiveDir string, index int, fids []string, numSegments []in
 	// Upload files
 	for i, filename := range archiveFiles {
 		wg.Add(1)
-		go uploadVolume(key.PublicUrl, fmt.Sprintf("%v_%v", key.Fid, i), filepath.Join(archiveDir, filename), wg)
+		go uploadVolume(key.PublicUrl,
+			fmt.Sprintf("%v_%v", key.Fid, i),
+			filepath.Join(archiveDir, filename),
+			wg)
 	}
 	// Upload segments
-	for i, segname := range segments {
+	for i := 0; i < len(segments); i++ {
 		wg.Add(1)
-		go uploadVolume(key.PublicUrl, fmt.Sprintf("%v_%v", key.Fid, 6+i), filepath.Join(archiveDir, "s", segname), wg)
+		go uploadVolume(key.PublicUrl,
+			fmt.Sprintf("%v_%v", key.Fid, 6+i),
+			filepath.Join(archiveDir, "s", strconv.FormatInt(int64(i), 10)),
+			wg)
 	}
 
 	wg.Done()
