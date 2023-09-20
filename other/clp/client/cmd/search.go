@@ -66,12 +66,15 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 	startTime := time.Now()
 
 	// Get volume ip address from master
-	ips, err := weed.LookupVolume(MasterAddr, archive.Fid)
-	if err != nil {
-		os.Exit(1)
+	ips := []string{"10.1.0.7",
+		"10.1.0.10",
+		"10.1.0.12",
+		"10.1.0.15",
+		"10.1.0.16",
+		"10.1.0.17",
+		"10.1.0.18",
+		"10.1.0.19",
 	}
-
-	masterTime := time.Now()
 
 	// Send search request with a random ip
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -83,7 +86,7 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 	// args = append(args, strconv.FormatUint(bts, 10))
 	// args = append(args, "--tle")
 	// args = append(args, strconv.FormatUint(ets, 10))
-	result, err := weed.ClgSearch(ip.PublicUrl, weed.ClgSearchRequest{
+	result, err := weed.ClgRemoteSearch(ip, weed.ClgSearchRequest{
 		Fid:              archive.Fid,
 		NumSegments:      uint64(archive.NumSegments),
 		ArchiveID:        archive.ArchiveID,
@@ -99,8 +102,8 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 
 	log.Printf("Total search: %d ms. Master: %d ms. Volume: %d ms.\n",
 		volumeTime.Sub(startTime).Milliseconds(),
-		masterTime.Sub(startTime).Milliseconds(),
-		volumeTime.Sub(masterTime).Milliseconds(),
+		0,
+		volumeTime.Sub(startTime).Milliseconds(),
 	)
 
 	mutex.Lock()

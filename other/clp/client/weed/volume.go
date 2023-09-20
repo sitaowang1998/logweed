@@ -110,3 +110,32 @@ func ClgSearch(volumeAddr string, request ClgSearchRequest) ([]string, error) {
 	}
 	return strings.Split(string(body), "\n"), nil
 }
+
+func ClgRemoteSearch(volumeAddr string, request ClgSearchRequest) ([]string, error) {
+	// Generate json request
+	jsonBytes, err := json.Marshal(request)
+	if err != nil {
+		log.Println("Generate json search request fails.", err)
+		return nil, err
+	}
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%v/clgsearch", volumeAddr), bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		log.Println("Generate search request fails.", err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send request
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Send clg search request fails.", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Read clg search result fails.", err)
+	}
+	return strings.Split(string(body), "\n"), nil
+}
