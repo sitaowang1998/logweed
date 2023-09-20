@@ -89,7 +89,7 @@ func ClgSearch(volumeAddr string, request ClgSearchRequest) ([]string, error) {
 		log.Println("Generate json search request fails.", err)
 		return nil, err
 	}
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://%v/clgsearch", volumeAddr), bytes.NewBuffer(jsonBytes))
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%v:8080/clgremotesearch", volumeAddr), bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		log.Println("Generate search request fails.", err)
 		return nil, err
