@@ -201,20 +201,20 @@ func downloadVolumeFile(addr string, fid string, path string, wg *sync.WaitGroup
 
 	file, err := os.Create(path)
 	if err != nil {
-		log.Println("Open file fails.", err)
+		glog.V(0).Infoln("Open file fails.", err)
 		return
 	}
 	defer file.Close()
 
 	resp, err := http.Get(fmt.Sprintf("http://%v/%v", addr, fid))
 	if err != nil {
-		log.Println("Get file fails.", err)
+		glog.V(0).Infoln("Get file fails.", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Get file bad status: ", resp.Status)
+		glog.V(0).Infoln("Get file bad status: ", resp.Status)
 		return
 	}
 
@@ -257,7 +257,7 @@ func downloadArchive(vs *VolumeServer, request ClgSearchRequest) error {
 		go downloadVolumeFile(volumeAddr, fmt.Sprintf("%v_%v", request.ArchiveID, i+6), archPath+"/s"+strconv.FormatUint(i, 10), &wg)
 	}
 
-	wg.Done()
+	wg.Wait()
 	return nil
 }
 
