@@ -123,6 +123,7 @@ func NewVolumeServer(adminMux, publicMux *http.ServeMux, ip string,
 		*/
 	}
 	adminMux.HandleFunc("/clgsearch", vs.clgHandler)
+	adminMux.HandleFunc("/clgremotesearch", vs.clgRemoteHandler)
 	adminMux.HandleFunc("/", vs.privateStoreHandler)
 	if publicMux != adminMux {
 		// separated admin and public port

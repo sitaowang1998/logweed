@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -182,6 +185,128 @@ func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uin
 		return err
 	}
 	return nil
+}
+
+type VolumeAddr struct {
+	PublicUrl string `json:"publicUrl"`
+	Url       string `json:"url"`
+}
+
+type volumeLookupResp struct {
+	Locations []VolumeAddr `json:"locations"`
+}
+
+func downloadVolumeFile(addr string, fid string, path string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	file, err := os.Create(path)
+	if err != nil {
+		log.Println("Open file fails.", err)
+		return
+	}
+	defer file.Close()
+
+	resp, err := http.Get(fmt.Sprintf("http://%v/%v", addr, fid))
+	if err != nil {
+		log.Println("Get file fails.", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Println("Get file bad status: ", resp.Status)
+		return
+	}
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		log.Println("Copy to file fails.", err)
+	}
+	return
+}
+
+func downloadArchive(vs *VolumeServer, request ClgSearchRequest) error {
+	resp, err := http.Get(fmt.Sprintf("http://%v/dir/lookup?volumeId=%v", vs.GetMaster().ToHttpAddress(), request.Fid))
+	if err != nil {
+		log.Println("Lookup volume fails.", err)
+		return err
+	}
+	defer resp.Body.Close()
+	decoder := json.NewDecoder(resp.Body)
+	var v volumeLookupResp
+	if err := decoder.Decode(&v); err != nil {
+		log.Println("Parse volume lookup fails.", err)
+		return err
+	}
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+	volumeAddr := v.Locations[random.Intn(len(v.Locations))].PublicUrl
+
+	archPath := "/mnt/ramdisk/archives/" + request.ArchiveID + "/" + request.ArchiveID
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go downloadVolumeFile(volumeAddr, fmt.Sprintf("%v_%v", request.ArchiveID, i), archPath+"/"+clp.CLG_file_name[i], &wg)
+	}
+
+	os.MkdirAll(archPath+"/s", 0777)
+
+	for i := uint64(0); i < request.NumSegments; i++ {
+		wg.Add(1)
+		go downloadVolumeFile(volumeAddr, fmt.Sprintf("%v_%v", request.ArchiveID, i+6), archPath+"/s"+strconv.FormatUint(i, 10), &wg)
+	}
+
+	wg.Done()
+	return nil
+}
+
+func (vs *VolumeServer) clgRemoteHandler(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var request ClgSearchRequest
+	if err := decoder.Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	glog.V(0).Infof("Clg: Receive Clg request for %v\n", request.Fid)
+
+	if err := downloadArchive(vs, request); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	glog.V(0).Infof("Clg: Copy file completes for %v\n", request.Fid)
+
+	// Create dummy db file
+	err := createCLGDB("/mnt/ramdisk/archives/"+request.ArchiveID, request.ArchiveID, request.UncompressedSize, request.Size)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	glog.V(0).Infof("Clg: Create dummy db completes for %v\n", request.Fid)
+
+	// Spawn the clg process
+	clgBin := "/home/sitao/clp/bin/clg"
+	var args []string
+	args = append(args, "/mnt/ramdisk/archives/"+request.ArchiveID)
+	args = append(args, request.Args...)
+
+	cmd := exec.Command(clgBin, args...)
+
+	output, err := cmd.Output()
+	if err != nil {
+		glog.V(0).Infoln("Clg search fail for "+request.Fid, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	glog.V(0).Infof("Clg: Search completes for %v\n", request.Fid)
+
+	os.RemoveAll("/mnt/ramdisk/archives" + request.ArchiveID)
+
+	// Send the output back to the client
+	w.Write(output)
+	glog.V(0).Infof("Clg: Send reply completes for %v\n", request.Fid)
 }
 
 func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
