@@ -21,10 +21,11 @@ var (
 	clpPath       string
 	filerAddr     string
 	compressLevel uint
+	uploadOnly    bool
 )
 
 var CmdCompress = &cobra.Command{
-	Use:   "compress <tag> <dir> [--filer ipAddr] [--clp_path clpPath]",
+	Use:   "compress <tag> <dir> [--filer ipAddr] [--clp_path clpPath] [--upload-only]",
 	Short: "Compress logs to SeaweedFS.",
 	Long:  "Compress the logs in a directory locally or on SeaweedFS.",
 	Args:  cobra.ExactArgs(2),
@@ -35,6 +36,7 @@ func init() {
 	CmdCompress.Flags().StringVar(&clpPath, "clp_path", "", "path to clp binary")
 	CmdCompress.Flags().StringVar(&filerAddr, "filer", "", "ip address of the filer")
 	CmdCompress.Flags().UintVar(&compressLevel, "compress_level", 3, "Compression level 1-9. 1 runs fastest with low compression rate. 9 runs slowest with high compression rate.")
+	CmdCompress.Flags().BoolVarP(&uploadOnly, "upload_only", "u", false, "Upload compressed directory directly")
 }
 
 // Invoking clp to compress the logs.
@@ -151,25 +153,28 @@ func compress(cmd *cobra.Command, args []string) {
 	connectMetadataServer()
 	log.Println("Connected to metadata server.")
 
-	// Download file from filer if necessary
-	if filerAddr != "" {
-		localDir := fmt.Sprintf("/tmp/logweed/uncompressed/%v", time.Now())
-		err := weedDownload(dir, localDir)
+	compressedDir := dir
+	if !uploadOnly {
+		// Download file from filer if necessary
+		if filerAddr != "" {
+			localDir := fmt.Sprintf("/tmp/logweed/uncompressed/%v", time.Now())
+			err := weedDownload(dir, localDir)
+			if err != nil {
+				return
+			}
+			dir = localDir
+			log.Println("Downloaded files from seaweedFS.")
+		}
+
+		// Run compression
+		compressedDir = fmt.Sprintf("/tmp/logweed/compressed/%v", time.Now())
+		err := compressLog(dir, compressedDir)
 		if err != nil {
+			log.Println("Clp compress fails.")
 			return
 		}
-		dir = localDir
-		log.Println("Downloaded files from seaweedFS.")
+		log.Println("Clp compressed finishes.")
 	}
-
-	// Run compression
-	compressedDir := fmt.Sprintf("/tmp/logweed/compressed/%v", time.Now())
-	err := compressLog(dir, compressedDir)
-	if err != nil {
-		log.Println("Clp compress fails.")
-		return
-	}
-	log.Println("Clp compressed finishes.")
 
 	// Generate metadata
 	archiveMetadatas, fileMetadatas, err := GetMetadata(filepath.Join(compressedDir, "metadata.db"))
