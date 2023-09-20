@@ -396,6 +396,8 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	glog.V(0).Infof("Clg: Search completes for %v\n", request.Fid)
 
+	os.RemoveAll("/mnt/ramdisk/archives" + archId)
+
 	// Send the output back to the client
 	w.Write(output)
 	glog.V(0).Infof("Clg: Send reply completes for %v\n", request.Fid)
