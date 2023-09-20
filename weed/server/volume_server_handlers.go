@@ -242,6 +242,7 @@ func downloadArchive(vs *VolumeServer, request ClgSearchRequest) error {
 	volumeAddr := v.Locations[random.Intn(len(v.Locations))].PublicUrl
 
 	archPath := "/mnt/ramdisk/archives/" + request.ArchiveID + "/" + request.ArchiveID
+	os.MkdirAll(archPath, 0777)
 
 	var wg sync.WaitGroup
 
