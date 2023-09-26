@@ -303,7 +303,7 @@ func (vs *VolumeServer) clgRemoteHandler(w http.ResponseWriter, r *http.Request)
 	}
 	glog.V(0).Infof("Clg: Search completes for %v\n", request.Fid)
 
-	os.RemoveAll("/mnt/ramdisk/archives" + request.ArchiveID)
+	os.RemoveAll("/mnt/ramdisk/archives/" + request.ArchiveID)
 
 	// Send the output back to the client
 	w.Write(output)
