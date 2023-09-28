@@ -255,7 +255,7 @@ func downloadArchive(vs *VolumeServer, request ClgSearchRequest) error {
 
 	for i := uint64(0); i < request.NumSegments; i++ {
 		wg.Add(1)
-		go downloadVolumeFile(volumeAddr, fmt.Sprintf("%v_%v", request.Fid, i+6), archPath+"/s"+strconv.FormatUint(i, 10), &wg)
+		go downloadVolumeFile(volumeAddr, fmt.Sprintf("%v_%v", request.Fid, i+6), archPath+"/s/"+strconv.FormatUint(i, 10), &wg)
 	}
 
 	wg.Wait()
