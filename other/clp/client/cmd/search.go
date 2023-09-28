@@ -132,8 +132,7 @@ func search(cmd *cobra.Command, args []string) {
 	log.Printf("Need to search %d archives.\n", len(archives))
 
 	// Shuffle the archives and assign ips to archives
-	numArchives := len(archives)
-	rand.Shuffle(numArchives, func(i, j int) {
+	rand.Shuffle(len(archives), func(i, j int) {
 		archives[i], archives[j] = archives[j], archives[i]
 	})
 
@@ -147,18 +146,13 @@ func search(cmd *cobra.Command, args []string) {
 		"10.1.0.19",
 	}
 
-	archivePerIp := numArchives / len(ips)
-	if numArchives%len(ips) > 0 {
-		archivePerIp += 1
-	}
-
 	// Search in parallel
 	results := make([]string, 0)
 	mutex := sync.Mutex{}
 	var wg sync.WaitGroup
-	for i := 0; i < numArchives; i++ {
+	for i := 0; i < len(archives); i++ {
 		wg.Add(1)
-		ip := ips[i/archivePerIp]
+		ip := ips[i%len(ips)]
 		go searchArchiveInVolume(&archives[i], ip, query, bts, ets, &results, &mutex, &wg)
 	}
 	wg.Wait()
