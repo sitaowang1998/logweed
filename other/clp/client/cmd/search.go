@@ -60,25 +60,11 @@ func parseTimeStamp(ts string) (uint64, error) {
 	return 0, nil
 }
 
-func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
+func searchArchiveInVolume(archive *metadata.ArchiveMetadata, ip string, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	startTime := time.Now()
 
-	// Get volume ip address from master
-	ips := []string{"10.1.0.7",
-		"10.1.0.10",
-		"10.1.0.12",
-		"10.1.0.15",
-		"10.1.0.16",
-		"10.1.0.17",
-		"10.1.0.18",
-		"10.1.0.19",
-	}
-
-	// Send search request with a random ip
-	random := rand.New(rand.NewSource(time.Now().UnixNano()))
-	ip := ips[random.Intn(len(ips))]
 	var args []string
 	args = append(args, query)
 	// For now, remove the timestamp filter for clg
@@ -145,13 +131,35 @@ func search(cmd *cobra.Command, args []string) {
 	}
 	log.Printf("Need to search %d archives.\n", len(archives))
 
+	// Shuffle the archives and assign ips to archives
+	numArchives := len(archives)
+	rand.Shuffle(numArchives, func(i, j int) {
+		archives[i], archives[j] = archives[j], archives[i]
+	})
+
+	ips := []string{"10.1.0.7",
+		"10.1.0.10",
+		"10.1.0.12",
+		"10.1.0.15",
+		"10.1.0.16",
+		"10.1.0.17",
+		"10.1.0.18",
+		"10.1.0.19",
+	}
+
+	archivePerIp := numArchives / len(ips)
+	if numArchives%len(ips) > 0 {
+		archivePerIp += 1
+	}
+
 	// Search in parallel
 	results := make([]string, 0)
 	mutex := sync.Mutex{}
 	var wg sync.WaitGroup
-	for i := 0; i < len(archives); i++ {
+	for i := 0; i < numArchives; i++ {
 		wg.Add(1)
-		go searchArchiveInVolume(&archives[i], query, bts, ets, &results, &mutex, &wg)
+		ip := ips[i/archivePerIp]
+		go searchArchiveInVolume(&archives[i], ip, query, bts, ets, &results, &mutex, &wg)
 	}
 	wg.Wait()
 	log.Println("Search complete.")
