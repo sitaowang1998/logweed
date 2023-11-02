@@ -116,7 +116,7 @@ require (
 	golang.org/x/image v0.5.0
 	golang.org/x/net v0.7.0
 	golang.org/x/oauth2 v0.5.0 // indirect
-	golang.org/x/sys v0.6.0
+	golang.org/x/sys v0.12.0
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/tools v0.6.0
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
@@ -147,6 +147,7 @@ require (
 	github.com/hanwen/go-fuse/v2 v2.2.0
 	github.com/hashicorp/raft v1.3.11
 	github.com/hashicorp/raft-boltdb/v2 v2.2.2
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/rabbitmq/amqp091-go v1.7.0
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/tikv/client-go/v2 v2.0.5
@@ -197,7 +198,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
-	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/montanaflynn/stats v0.6.6 // indirect
 	github.com/nats-io/nats.go v1.20.0 // indirect
