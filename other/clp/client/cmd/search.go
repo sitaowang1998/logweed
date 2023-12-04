@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"clp_client/metadata"
+	"clp_client/scheduler"
 	"clp_client/weed"
 	"fmt"
 	"github.com/spf13/cobra"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -60,22 +61,11 @@ func parseTimeStamp(ts string) (uint64, error) {
 	return 0, nil
 }
 
-func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
+func searchArchiveInVolume(archive metadata.ArchiveMetadata, query string, bts uint64, ets uint64, addr weed.VolumeAddr, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	startTime := time.Now()
 
-	// Get volume ip address from master
-	ips, err := weed.LookupVolume(MasterAddr, archive.Fid)
-	if err != nil {
-		os.Exit(1)
-	}
-
-	masterTime := time.Now()
-
-	// Send search request with a random ip
-	random := rand.New(rand.NewSource(time.Now().UnixNano()))
-	ip := ips[random.Intn(len(ips))]
 	var args []string
 	args = append(args, query)
 	// For now, remove the timestamp filter for clg
@@ -83,7 +73,7 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 	// args = append(args, strconv.FormatUint(bts, 10))
 	// args = append(args, "--tle")
 	// args = append(args, strconv.FormatUint(ets, 10))
-	result, err := weed.ClgSearch(ip.PublicUrl, weed.ClgSearchRequest{
+	result, err := weed.ClgSearch(addr.PublicUrl, weed.ClgSearchRequest{
 		Fid:              archive.Fid,
 		NumSegments:      uint64(archive.NumSegments),
 		ArchiveID:        archive.ArchiveID,
@@ -97,15 +87,52 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, query string, bts 
 
 	volumeTime := time.Now()
 
-	log.Printf("Total search: %d ms. Master: %d ms. Volume: %d ms.\n",
+	log.Printf("Volume search time: %d ms.\n",
 		volumeTime.Sub(startTime).Milliseconds(),
-		masterTime.Sub(startTime).Milliseconds(),
-		volumeTime.Sub(masterTime).Milliseconds(),
 	)
 
 	mutex.Lock()
 	*results = append(*results, result...)
 	mutex.Unlock()
+}
+
+func getVolumeAddress(volumeId string, addresses map[string][]weed.VolumeAddr, mutex *sync.Mutex, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	ips, err := weed.LookupVolume(MasterAddr, volumeId)
+	if err != nil {
+		log.Printf("Error getting volume address for %s", volumeId)
+		log.Println(err)
+		os.Exit(1)
+	}
+	mutex.Lock()
+	addresses[volumeId] = ips
+	mutex.Unlock()
+}
+
+func getVolumeId(fid string) string {
+	return fid[:strings.Index(fid, ",")]
+}
+
+func getVolumeAddresses(archives []metadata.ArchiveMetadata) map[string][]weed.VolumeAddr {
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+
+	addresses := make(map[string][]weed.VolumeAddr)
+	ips := make(map[string]struct{})
+
+	for _, archive := range archives {
+		vid := getVolumeId(archive.Fid)
+		_, ok := ips[vid]
+		if !ok {
+			ips[vid] = struct{}{}
+			wg.Add(1)
+			go getVolumeAddress(vid, addresses, &mutex, &wg)
+		}
+	}
+
+	wg.Wait()
+	return addresses
 }
 
 func search(cmd *cobra.Command, args []string) {
@@ -142,13 +169,27 @@ func search(cmd *cobra.Command, args []string) {
 	}
 	log.Printf("Need to search %d archives.\n", len(archives))
 
+	// Get volume server addresses
+	volumeIps := getVolumeAddresses(archives)
+
+	// Generate schedule plan
+	archiveInfo := make([]scheduler.ArchiveInfo, 0, len(archives))
+	for _, archive := range archives {
+		archiveInfo = append(archiveInfo, scheduler.NewArchiveInfo(
+			archive, volumeIps[getVolumeId(archive.Fid)]))
+	}
+	sched := scheduler.NewEvenSizeScheduler(archiveInfo)
+	schedulePlan := sched.Schedule()
+
 	// Search in parallel
 	results := make([]string, 0)
 	mutex := sync.Mutex{}
 	var wg sync.WaitGroup
-	for i := 0; i < len(archives); i++ {
-		wg.Add(1)
-		go searchArchiveInVolume(&archives[i], query, bts, ets, &results, &mutex, &wg)
+	for ip, archives := range schedulePlan {
+		for _, archive := range archives {
+			wg.Add(1)
+			go searchArchiveInVolume(archive, query, bts, ets, ip, &results, &mutex, &wg)
+		}
 	}
 	wg.Wait()
 	log.Println("Search complete.")

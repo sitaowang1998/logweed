@@ -11,7 +11,7 @@ type EvenSizeScheduler struct {
 	archives []ArchiveInfo
 }
 
-func newEvenSizeScheduler(archives []ArchiveInfo) EvenSizeScheduler {
+func NewEvenSizeScheduler(archives []ArchiveInfo) EvenSizeScheduler {
 	return EvenSizeScheduler{archives: archives}
 }
 

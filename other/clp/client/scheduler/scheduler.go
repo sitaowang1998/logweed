@@ -21,7 +21,7 @@ type ArchiveInfo struct {
 	ips              []weed.VolumeAddr
 }
 
-func newArchiveInfo(metadata metadata.ArchiveMetadata, ips []weed.VolumeAddr) ArchiveInfo {
+func NewArchiveInfo(metadata metadata.ArchiveMetadata, ips []weed.VolumeAddr) ArchiveInfo {
 	return ArchiveInfo{
 		size:             metadata.Size,
 		uncompressedSize: metadata.UncompressedSize,
