@@ -131,6 +131,22 @@ func (w *waitQueue) getTask(prevVid string) *archiveIndex {
 	return nil
 }
 
+func (w *waitQueue) getNumQueue() int {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	return len(w.archives)
+}
+
+func (w *waitQueue) getNumTask() int {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	numTasks := 0
+	for vid := range w.archives {
+		numTasks += len(w.archives[vid])
+	}
+	return numTasks
+}
+
 func getNeedleId(archiveDir string, index int, keys []weed.FileKey, numSegments []int, queue *waitQueue, wg *sync.WaitGroup) {
 	// Get number of files
 	segmentDir, err := os.Open(filepath.Join(archiveDir, "s"))
@@ -276,6 +292,7 @@ func compress(cmd *cobra.Command, args []string) {
 		go getNeedleId(filepath.Join(compressedDir, archive), i, keys, numSegments, &queue, &wg)
 	}
 	wg.Wait()
+	log.Printf("Queue lenght: %v, number of archives: %v.\n", queue.getNumQueue(), queue.getNumTask())
 
 	// Start workers
 	for i := 0; i < numWorkers; i++ {
