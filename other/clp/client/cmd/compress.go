@@ -275,6 +275,7 @@ func compress(cmd *cobra.Command, args []string) {
 		wg.Add(1)
 		go getNeedleId(filepath.Join(compressedDir, archive), i, keys, numSegments, &queue, &wg)
 	}
+	wg.Wait()
 
 	// Start workers
 	for i := 0; i < numWorkers; i++ {
