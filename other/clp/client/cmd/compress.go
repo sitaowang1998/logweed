@@ -194,6 +194,7 @@ func uploadArchiveWorker(queue *waitQueue, keys []weed.FileKey, numSegments []in
 }
 
 func uploadArchive(archiveDir string, key weed.FileKey, numSegments int) {
+	log.Printf("Uploading %v to %v.", archiveDir, key.Fid)
 	// Upload files
 	for i, filename := range archiveFiles {
 		go uploadVolume(key.PublicUrl,
@@ -285,7 +286,7 @@ func compress(cmd *cobra.Command, args []string) {
 	var queue waitQueue
 	queue.archives = make(map[string][]archiveIndex)
 	queue.inUse = make(map[string]bool)
-	numWorkers := 12 // Hardcode number of workers for now
+	numWorkers := 8 // Hardcode number of workers for now
 	// Get archive id and initiate tasks
 	for i, archive := range archives {
 		wg.Add(1)

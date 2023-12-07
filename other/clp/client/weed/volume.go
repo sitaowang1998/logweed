@@ -39,9 +39,12 @@ func UploadFile(volumeAddr string, fid string, filepath string) error {
 		}
 	}()
 
-	_, err := http.Post(fmt.Sprintf("http://%v/%v", volumeAddr, fid), m.FormDataContentType(), read)
+	res, err := http.Post(fmt.Sprintf("http://%v/%v", volumeAddr, fid), m.FormDataContentType(), read)
 	if err != nil {
 		log.Println("Upload file fails.", err)
+	}
+	if res.StatusCode != 200 {
+		log.Fatalf("Upload file fails with %v.", res.Status)
 	}
 	return err
 }
