@@ -264,6 +264,8 @@ func compress(cmd *cobra.Command, args []string) {
 	keys := make([]weed.FileKey, len(archives))
 	numSegments := make([]int, len(archives))
 	var queue waitQueue
+	queue.archives = make(map[string][]archiveIndex)
+	queue.inUse = make(map[string]bool)
 	numWorkers := 12 // Hardcode number of workers for now
 	// Get archive id and initiate tasks
 	for i, archive := range archives {
