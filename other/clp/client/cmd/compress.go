@@ -160,6 +160,9 @@ func getNeedleId(archiveDir string, index int, keys []weed.FileKey, numSegments 
 func uploadArchiveWorker(queue *waitQueue, keys []weed.FileKey, numSegments []int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	archive := queue.getTask("")
+	if archive == nil {
+		return
+	}
 	fid := keys[archive.Index].Fid
 	vid := weed.ExtractVolumeId(fid)
 	uploadArchive(archive.ArchiveDir, keys[archive.Index], numSegments[archive.Index])
