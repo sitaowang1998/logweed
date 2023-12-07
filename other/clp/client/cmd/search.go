@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -110,10 +109,6 @@ func getVolumeAddress(volumeId string, addresses map[string][]weed.VolumeAddr, m
 	mutex.Unlock()
 }
 
-func getVolumeId(fid string) string {
-	return fid[:strings.Index(fid, ",")]
-}
-
 func getVolumeAddresses(archives []metadata.ArchiveMetadata) map[string][]weed.VolumeAddr {
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
@@ -122,7 +117,7 @@ func getVolumeAddresses(archives []metadata.ArchiveMetadata) map[string][]weed.V
 	ips := make(map[string]struct{})
 
 	for _, archive := range archives {
-		vid := getVolumeId(archive.Fid)
+		vid := weed.ExtractVolumeId(archive.Fid)
 		_, ok := ips[vid]
 		if !ok {
 			ips[vid] = struct{}{}
@@ -176,7 +171,7 @@ func search(cmd *cobra.Command, args []string) {
 	archiveInfo := make([]scheduler.ArchiveInfo, 0, len(archives))
 	for _, archive := range archives {
 		archiveInfo = append(archiveInfo, scheduler.NewArchiveInfo(
-			archive, volumeIps[getVolumeId(archive.Fid)]))
+			archive, volumeIps[weed.ExtractVolumeId(archive.Fid)]))
 	}
 	sched := scheduler.NewEvenSizeScheduler(archiveInfo)
 	schedulePlan := sched.Schedule()

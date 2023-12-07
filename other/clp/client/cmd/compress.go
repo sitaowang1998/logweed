@@ -79,17 +79,59 @@ func weedDownload(remotePath string, localPath string) error {
 }
 
 // Wrapper for weed.UploadFile for go routine
-func uploadVolume(volumeAddr string, fid string, path string, wg *sync.WaitGroup) {
+func uploadVolume(volumeAddr string, fid string, path string) {
 	err := weed.UploadFile(volumeAddr, fid, path)
 	if err != nil {
 		log.Fatalf("Upload file %v to volume %v fid %v fails.", path, volumeAddr, fid)
 	}
-	wg.Done()
 }
 
 var archiveFiles = []string{"logtype.dict", "logtype.segindex", "metadata", "metadata.db", "var.dict", "var.segindex"}
 
-func uploadArchive(archiveDir string, index int, fids []string, numSegments []int, wg *sync.WaitGroup) {
+type archiveIndex struct {
+	ArchiveDir string
+	Index      int
+}
+
+type waitQueue struct {
+	archives map[string][]archiveIndex
+	inUse    map[string]bool
+	mutex    sync.Mutex
+}
+
+func (w *waitQueue) addArchive(archiveDir string, index int, key weed.FileKey) {
+	vid := weed.ExtractVolumeId(key.Fid)
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	_, ok := w.archives[vid]
+	if !ok {
+		w.archives[vid] = make([]archiveIndex, 0)
+		w.inUse[vid] = false
+	}
+	w.archives[vid] = append(w.archives[vid], archiveIndex{
+		ArchiveDir: archiveDir,
+		Index:      index,
+	})
+}
+
+func (w *waitQueue) getTask(prevVid string) *archiveIndex {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	if len(prevVid) != 0 {
+		w.inUse[prevVid] = false
+	}
+	for vid := range w.archives {
+		if !w.inUse[vid] && len(w.archives[vid]) != 0 {
+			archive := w.archives[vid][0]
+			w.archives[vid] = w.archives[vid][1:]
+			w.inUse[vid] = true
+			return &archive
+		}
+	}
+	return nil
+}
+
+func getNeedleId(archiveDir string, index int, keys []weed.FileKey, numSegments []int, queue *waitQueue, wg *sync.WaitGroup) {
 	// Get number of files
 	segmentDir, err := os.Open(filepath.Join(archiveDir, "s"))
 	if err != nil {
@@ -102,30 +144,49 @@ func uploadArchive(archiveDir string, index int, fids []string, numSegments []in
 	}
 	numFiles := 6 + len(segments)
 	numSegments[index] = len(segments)
+
 	// Get a NeedleID from master
 	key, err := weed.AssignFileKey(MasterAddr, numFiles)
 	if err != nil {
 		log.Fatalln("Get new NeedleID fails.")
 	}
-	fids[index] = key.Fid
-	// Upload files
-	for i, filename := range archiveFiles {
-		wg.Add(1)
-		go uploadVolume(key.PublicUrl,
-			fmt.Sprintf("%v_%v", key.Fid, i),
-			filepath.Join(archiveDir, filename),
-			wg)
-	}
-	// Upload segments
-	for i := 0; i < len(segments); i++ {
-		wg.Add(1)
-		go uploadVolume(key.PublicUrl,
-			fmt.Sprintf("%v_%v", key.Fid, 6+i),
-			filepath.Join(archiveDir, "s", strconv.FormatInt(int64(i), 10)),
-			wg)
-	}
+	keys[index] = key
+
+	queue.addArchive(archiveDir, index, key)
 
 	wg.Done()
+}
+
+func uploadArchiveWorker(queue *waitQueue, keys []weed.FileKey, numSegments []int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	archive := queue.getTask("")
+	fid := keys[archive.Index].Fid
+	vid := weed.ExtractVolumeId(fid)
+	uploadArchive(archive.ArchiveDir, keys[archive.Index], numSegments[archive.Index])
+	for {
+		archive = queue.getTask(vid)
+		if archive == nil {
+			return
+		}
+		fid = keys[archive.Index].Fid
+		vid = weed.ExtractVolumeId(fid)
+		uploadArchive(archive.ArchiveDir, keys[archive.Index], numSegments[archive.Index])
+	}
+}
+
+func uploadArchive(archiveDir string, key weed.FileKey, numSegments int) {
+	// Upload files
+	for i, filename := range archiveFiles {
+		go uploadVolume(key.PublicUrl,
+			fmt.Sprintf("%v_%v", key.Fid, i),
+			filepath.Join(archiveDir, filename))
+	}
+	// Upload segments
+	for i := 0; i < numSegments; i++ {
+		go uploadVolume(key.PublicUrl,
+			fmt.Sprintf("%v_%v", key.Fid, 6+i),
+			filepath.Join(archiveDir, "s", strconv.FormatInt(int64(i), 10)))
+	}
 }
 
 func getArchive(archives []metadata.ArchiveMetadata, archiveID string) *metadata.ArchiveMetadata {
@@ -200,19 +261,29 @@ func compress(cmd *cobra.Command, args []string) {
 	}
 	archives = removeFromList(archives, "metadata.db")
 	wg := sync.WaitGroup{}
-	fids := make([]string, len(archives))
+	keys := make([]weed.FileKey, len(archives))
 	numSegments := make([]int, len(archives))
+	var queue waitQueue
+	numWorkers := 12 // Hardcode number of workers for now
+	// Get archive id and initiate tasks
 	for i, archive := range archives {
 		wg.Add(1)
-		go uploadArchive(filepath.Join(compressedDir, archive), i, fids, numSegments, &wg)
+		go getNeedleId(filepath.Join(compressedDir, archive), i, keys, numSegments, &queue, &wg)
 	}
+
+	// Start workers
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go uploadArchiveWorker(&queue, keys, numSegments, &wg)
+	}
+
 	wg.Wait()
 	log.Println("Uploaded archives.")
 
 	// Update metadata with fids and number of segments
 	for i, archiveID := range archives {
 		archive := getArchive(archiveMetadatas, archiveID)
-		archive.Fid = fids[i]
+		archive.Fid = keys[i].Fid
 		archive.NumSegments = numSegments[i]
 	}
 
