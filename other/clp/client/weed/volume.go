@@ -14,34 +14,33 @@ import (
 )
 
 func UploadFile(volumeAddr string, fid string, filepath string) error {
-	bodyBuf := &bytes.Buffer{}
-	bodyWriter := multipart.NewWriter(bodyBuf)
+	read, write := io.Pipe()
+	m := multipart.NewWriter(write)
 
-	fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filepath)
-	if err != nil {
-		fmt.Printf("Fail to create writer for %v", filepath)
-		return err
-	}
+	go func() {
+		defer write.Close()
+		defer m.Close()
 
-	// open file handle
-	fh, err := os.Open(filepath)
-	if err != nil {
-		fmt.Printf("Fail to open file %v", filepath)
-		return err
-	}
-	defer fh.Close()
+		part, err := m.CreateFormFile("uploadfile", filepath)
+		if err != nil {
+			log.Printf("Create multipart %v fails. %v", filepath, err)
+			return
+		}
+		file, err := os.Open(filepath)
+		if err != nil {
+			log.Printf("Open file %v fails. %v", filepath, err)
+			return
+		}
+		defer file.Close()
 
-	//iocopy
-	_, err = io.Copy(fileWriter, fh)
-	if err != nil {
-		return err
-	}
-
-	contentType := bodyWriter.FormDataContentType()
-	bodyWriter.Close()
+		if _, err = io.Copy(part, file); err != nil {
+			log.Printf("Copy file %v/%v fails. %v", volumeAddr, fid, err)
+			return
+		}
+	}()
 
 	url := fmt.Sprintf("http://%v/%v", volumeAddr, fid)
-	res, err := http.Post(url, contentType, bodyBuf)
+	res, err := http.Post(url, m.FormDataContentType(), read)
 	if err != nil {
 		log.Printf("Upload %v fails with %v.", url, err)
 	}
