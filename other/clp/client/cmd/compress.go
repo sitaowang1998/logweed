@@ -208,6 +208,50 @@ func uploadArchive(archiveDir string, key weed.FileKey, numSegments int) {
 	}
 }
 
+func uploadArchiveSeq(archiveDir string, index int, keys []weed.FileKey, numSegments []int) error {
+	// Get number of files
+	segmentDir, err := os.Open(filepath.Join(archiveDir, "s"))
+	if err != nil {
+		log.Fatalln("Read archive segment dir fails.")
+		return err
+	}
+	defer segmentDir.Close()
+	segments, err := segmentDir.Readdirnames(0)
+	if err != nil {
+		log.Fatalln("Walk archive segment dir fails.")
+		return err
+	}
+	numFiles := 6 + len(segments)
+	numSegments[index] = len(segments)
+	// Get a NeedleID from master
+	key, err := weed.AssignFileKey(MasterAddr, numFiles)
+	if err != nil {
+		log.Fatalln("Get new NeedleID fails.")
+		return err
+	}
+	keys[index] = key
+	// Upload files
+	for i, filename := range archiveFiles {
+		err = weed.UploadFile(key.PublicUrl,
+			fmt.Sprintf("%v_%v", key.Fid, i),
+			filepath.Join(archiveDir, filename))
+		if err != nil {
+			log.Fatalf("Upload file %v_%v fails %v", key.Fid, i, err)
+		}
+	}
+	// Upload segments
+	for i := 0; i < len(segments); i++ {
+		err = weed.UploadFile(key.PublicUrl,
+			fmt.Sprintf("%v_%v", key.Fid, 6+i),
+			filepath.Join(archiveDir, "s", strconv.FormatInt(int64(i), 10)))
+		if err != nil {
+			log.Fatalf("Upload file %v_%v fails %v", key.Fid, i, err)
+		}
+	}
+
+	return nil
+}
+
 func getArchive(archives []metadata.ArchiveMetadata, archiveID string) *metadata.ArchiveMetadata {
 	for i, _ := range archives {
 		if archives[i].ArchiveID == archiveID {
@@ -279,28 +323,37 @@ func compress(cmd *cobra.Command, args []string) {
 		return
 	}
 	archives = removeFromList(archives, "metadata.db")
-	wg := sync.WaitGroup{}
+	//wg := sync.WaitGroup{}
 	keys := make([]weed.FileKey, len(archives))
 	numSegments := make([]int, len(archives))
-	var queue waitQueue
-	queue.archives = make(map[string][]archiveIndex)
-	queue.inUse = make(map[string]bool)
-	numWorkers := 8 // Hardcode number of workers for now
-	// Get archive id and initiate tasks
+	//var queue waitQueue
+	//queue.archives = make(map[string][]archiveIndex)
+	//queue.inUse = make(map[string]bool)
+	//numWorkers := 8 // Hardcode number of workers for now
+	//// Get archive id and initiate tasks
+	//for i, archive := range archives {
+	//	wg.Add(1)
+	//	go getNeedleId(filepath.Join(compressedDir, archive), i, keys, numSegments, &queue, &wg)
+	//}
+	//wg.Wait()
+	//log.Printf("Queue lenght: %v, number of archives: %v.\n", queue.getNumQueue(), queue.getNumTask())
+	//
+	//// Start workers
+	//for i := 0; i < numWorkers; i++ {
+	//	wg.Add(1)
+	//	go uploadArchiveWorker(&queue, keys, numSegments, &wg)
+	//}
+
+	//wg.Wait()
+
+	// Upload archives sequentially
 	for i, archive := range archives {
-		wg.Add(1)
-		go getNeedleId(filepath.Join(compressedDir, archive), i, keys, numSegments, &queue, &wg)
-	}
-	wg.Wait()
-	log.Printf("Queue lenght: %v, number of archives: %v.\n", queue.getNumQueue(), queue.getNumTask())
-
-	// Start workers
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go uploadArchiveWorker(&queue, keys, numSegments, &wg)
+		err = uploadArchiveSeq(filepath.Join(compressedDir, archive), i, keys, numSegments)
+		if err != nil {
+			return
+		}
 	}
 
-	wg.Wait()
 	log.Println("Uploaded archives.")
 
 	// Update metadata with fids and number of segments
