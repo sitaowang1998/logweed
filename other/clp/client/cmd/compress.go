@@ -194,7 +194,6 @@ func uploadArchiveWorker(queue *waitQueue, keys []weed.FileKey, numSegments []in
 }
 
 func uploadArchive(archiveDir string, key weed.FileKey, numSegments int) {
-	log.Printf("Uploading %v to %v.", archiveDir, key.Fid)
 	// Upload files
 	for i, filename := range archiveFiles {
 		go uploadVolume(key.PublicUrl,
