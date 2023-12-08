@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 )
 
 type VolumeAddr struct {
@@ -65,8 +64,4 @@ func AssignFileKey(masterAddr string, count int) (FileKey, error) {
 		return k, errors.New("file count not match")
 	}
 	return k, nil
-}
-
-func ExtractVolumeId(fid string) string {
-	return fid[:strings.Index(fid, ",")]
 }
