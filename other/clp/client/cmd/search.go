@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -62,7 +60,7 @@ func parseTimeStamp(ts string) (uint64, error) {
 	return 0, nil
 }
 
-func searchArchiveInVolume(archive *metadata.ArchiveMetadata, ip string, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
+func searchArchiveInVolume(archive metadata.ArchiveMetadata, ip string, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
 
 	startTime := time.Now()
 
@@ -96,7 +94,7 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, ip string, query s
 	mutex.Unlock()
 }
 
-func getVolumeAddress(volumeId string, addresses map[string][]weed.VolumeAddr, mutex *sync.Mutex, wg *sync.WaitGroup) {
+func getVolumeAddress(volumeId string, addresses map[weed.VolumeAddr]struct{}, mutex *sync.Mutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	ips, err := weed.LookupVolume(MasterAddr, volumeId)
@@ -105,34 +103,40 @@ func getVolumeAddress(volumeId string, addresses map[string][]weed.VolumeAddr, m
 		log.Println(err)
 		os.Exit(1)
 	}
+
 	mutex.Lock()
-	addresses[volumeId] = ips
-	mutex.Unlock()
+	defer mutex.Unlock()
+	for _, ip := range ips {
+		addresses[ip] = struct{}{}
+	}
 }
 
-func getVolumeId(fid string) string {
-	return fid[:strings.Index(fid, ",")]
-}
-
-func getVolumeAddresses(archives []metadata.ArchiveMetadata) map[string][]weed.VolumeAddr {
+func getVolumeAddresses(archives []metadata.ArchiveMetadata) []weed.VolumeAddr {
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 
-	addresses := make(map[string][]weed.VolumeAddr)
-	ips := make(map[string]struct{})
+	vids := make(map[string]struct{})
 
 	for _, archive := range archives {
-		vid := getVolumeId(archive.Fid)
-		_, ok := ips[vid]
-		if !ok {
-			ips[vid] = struct{}{}
-			wg.Add(1)
-			go getVolumeAddress(vid, addresses, &mutex, &wg)
-		}
+		vid := weed.ExtractVolumeId(archive.Fid)
+		vids[vid] = struct{}{}
+	}
+
+	addresses := make(map[weed.VolumeAddr]struct{})
+	for vid := range vids {
+		wg.Add(1)
+		getVolumeAddress(vid, addresses, &mutex, &wg)
 	}
 
 	wg.Wait()
-	return addresses
+
+	ips := make([]weed.VolumeAddr, len(addresses))
+	i := 0
+	for addr := range addresses {
+		ips[i] = addr
+	}
+
+	return ips
 }
 
 func search(cmd *cobra.Command, args []string) {
@@ -169,20 +173,6 @@ func search(cmd *cobra.Command, args []string) {
 	}
 	log.Printf("Need to search %d archives.\n", len(archives))
 
-	// Shuffle the archives and assign ips to archives
-	rand.Shuffle(len(archives), func(i, j int) {
-		archives[i], archives[j] = archives[j], archives[i]
-	})
-
-	ips := []string{"10.1.0.7",
-		"10.1.0.10",
-		"10.1.0.12",
-		"10.1.0.15",
-		"10.1.0.16",
-		"10.1.0.17",
-		"10.1.0.18",
-		"10.1.0.19",
-	}
 	// Get volume server addresses
 	volumeIps := getVolumeAddresses(archives)
 
@@ -190,7 +180,7 @@ func search(cmd *cobra.Command, args []string) {
 	archiveInfo := make([]scheduler.ArchiveInfo, 0, len(archives))
 	for _, archive := range archives {
 		archiveInfo = append(archiveInfo, scheduler.NewArchiveInfo(
-			archive, volumeIps[getVolumeId(archive.Fid)]))
+			archive, volumeIps))
 	}
 	sched := scheduler.NewEvenSizeScheduler(archiveInfo)
 	schedulePlan := sched.Schedule()
@@ -202,7 +192,7 @@ func search(cmd *cobra.Command, args []string) {
 	for ip, archives := range schedulePlan {
 		for _, archive := range archives {
 			wg.Add(1)
-			go searchArchiveInVolume(archive, query, bts, ets, ip, &results, &mutex, &wg)
+			go searchArchiveInVolume(archive, ip.PublicUrl, query, bts, ets, &results, &mutex, &wg)
 		}
 	}
 	wg.Wait()
