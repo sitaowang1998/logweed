@@ -23,18 +23,18 @@ func UploadFile(volumeAddr string, fid string, filepath string) error {
 
 		part, err := m.CreateFormFile("uploadfile", filepath)
 		if err != nil {
-			log.Println("Create multipart fails.", err)
+			log.Printf("Create multipart %v fails. %v", filepath, err)
 			return
 		}
 		file, err := os.Open(filepath)
 		if err != nil {
-			log.Println("Open file fails.", err)
+			log.Printf("Open file %v fails. %v", filepath, err)
 			return
 		}
 		defer file.Close()
 
 		if _, err = io.Copy(part, file); err != nil {
-			log.Println("Copy file fails.", err)
+			log.Printf("Copy file %v/%v fails. %v", volumeAddr, fid, err)
 			return
 		}
 	}()

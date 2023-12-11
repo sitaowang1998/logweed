@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"clp_client/metadata"
+	"clp_client/scheduler"
 	"clp_client/weed"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -9,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -61,7 +63,6 @@ func parseTimeStamp(ts string) (uint64, error) {
 }
 
 func searchArchiveInVolume(archive *metadata.ArchiveMetadata, ip string, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
-	defer wg.Done()
 
 	startTime := time.Now()
 
@@ -86,15 +87,52 @@ func searchArchiveInVolume(archive *metadata.ArchiveMetadata, ip string, query s
 
 	volumeTime := time.Now()
 
-	log.Printf("Total search: %d ms. Master: %d ms. Volume: %d ms.\n",
-		volumeTime.Sub(startTime).Milliseconds(),
-		0,
+	log.Printf("Volume search time: %d ms.\n",
 		volumeTime.Sub(startTime).Milliseconds(),
 	)
 
 	mutex.Lock()
 	*results = append(*results, result...)
 	mutex.Unlock()
+}
+
+func getVolumeAddress(volumeId string, addresses map[string][]weed.VolumeAddr, mutex *sync.Mutex, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	ips, err := weed.LookupVolume(MasterAddr, volumeId)
+	if err != nil {
+		log.Printf("Error getting volume address for %s", volumeId)
+		log.Println(err)
+		os.Exit(1)
+	}
+	mutex.Lock()
+	addresses[volumeId] = ips
+	mutex.Unlock()
+}
+
+func getVolumeId(fid string) string {
+	return fid[:strings.Index(fid, ",")]
+}
+
+func getVolumeAddresses(archives []metadata.ArchiveMetadata) map[string][]weed.VolumeAddr {
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+
+	addresses := make(map[string][]weed.VolumeAddr)
+	ips := make(map[string]struct{})
+
+	for _, archive := range archives {
+		vid := getVolumeId(archive.Fid)
+		_, ok := ips[vid]
+		if !ok {
+			ips[vid] = struct{}{}
+			wg.Add(1)
+			go getVolumeAddress(vid, addresses, &mutex, &wg)
+		}
+	}
+
+	wg.Wait()
+	return addresses
 }
 
 func search(cmd *cobra.Command, args []string) {
@@ -145,15 +183,27 @@ func search(cmd *cobra.Command, args []string) {
 		"10.1.0.18",
 		"10.1.0.19",
 	}
+	// Get volume server addresses
+	volumeIps := getVolumeAddresses(archives)
+
+	// Generate schedule plan
+	archiveInfo := make([]scheduler.ArchiveInfo, 0, len(archives))
+	for _, archive := range archives {
+		archiveInfo = append(archiveInfo, scheduler.NewArchiveInfo(
+			archive, volumeIps[getVolumeId(archive.Fid)]))
+	}
+	sched := scheduler.NewEvenSizeScheduler(archiveInfo)
+	schedulePlan := sched.Schedule()
 
 	// Search in parallel
 	results := make([]string, 0)
 	mutex := sync.Mutex{}
 	var wg sync.WaitGroup
-	for i := 0; i < len(archives); i++ {
-		wg.Add(1)
-		ip := ips[i%len(ips)]
-		go searchArchiveInVolume(&archives[i], ip, query, bts, ets, &results, &mutex, &wg)
+	for ip, archives := range schedulePlan {
+		for _, archive := range archives {
+			wg.Add(1)
+			go searchArchiveInVolume(archive, query, bts, ets, ip, &results, &mutex, &wg)
+		}
 	}
 	wg.Wait()
 	log.Println("Search complete.")
