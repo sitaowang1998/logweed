@@ -159,6 +159,24 @@ INSERT INTO archives(id, uncompressed_size, size, creator_id, creation_ix) VALUE
 );
 `
 
+const createFileQuery = `
+CREATE TABLE files (id TEXT PRIMARY KEY,
+	orig_file_id TEXT,
+	path TEXT,
+	begin_timestamp INTEGER,
+	end_timestamp INTEGER,
+	num_uncompressed_bytes INTEGER,
+	num_messages INTEGER,
+	archive_id TEXT
+) WITHOUT ROWID;
+`
+const createFileIndexQuery = `
+CREATE INDEX files_path ON files (path);
+`
+const createFileArchiveIndexQuery = `
+CREATE INDEX files_archive_id ON files (archive_id);
+`
+
 func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uint64) error {
 	filePath := dir + "/metadata.db"
 	db, err := sql.Open("sqlite3", filePath)
@@ -180,6 +198,16 @@ func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uin
 	if _, err := db.Exec(insertArchiveQuery, archiveID, uncompressedSize, size, "", 0); err != nil {
 		glog.V(0).Infoln("Insert table fail", err)
 		return err
+	}
+	if _, err := db.Exec(createFileQuery); err != nil {
+		glog.V(0).Infoln("Create table fail", err)
+		return err
+	}
+	if _, err := db.Exec(createFileIndexQuery); err != nil {
+		glog.V(0).Infoln("Create index fail", err)
+	}
+	if _, err := db.Exec(createFileArchiveIndexQuery); err != nil {
+		glog.V(0).Infoln("Create index fail", err)
 	}
 	return nil
 }
