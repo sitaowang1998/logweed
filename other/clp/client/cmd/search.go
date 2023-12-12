@@ -134,6 +134,7 @@ func getVolumeAddresses(archives []metadata.ArchiveMetadata) []weed.VolumeAddr {
 	i := 0
 	for addr := range addresses {
 		ips[i] = addr
+		i++
 	}
 
 	return ips
