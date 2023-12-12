@@ -277,15 +277,9 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 
 		readOffset := nv.Offset.ToActualOffset() + types.NeedleHeaderSize
 		// read the size
-		buf := make([]byte, 4)
-		_, err = diskFile.File.ReadAt(buf, int64(readOffset))
-		if err != nil {
-			panic(err)
-		}
-		readSize := util.BytesToUint32(buf)
 		readOffset += 4
 		clgfiles.Files[i].Offset = uint64(readOffset)
-		clgfiles.Files[i].Size = uint32(readSize)
+		clgfiles.Files[i].Size = uint32(nv.Size)
 		if clgfiles.Files[i].Size < 1024 {
 			clgfiles.Files[i].Size += 4
 		}
@@ -343,17 +337,10 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		readOffset := nv.Offset.ToActualOffset() + types.NeedleHeaderSize
-		// read the size
-		buf := make([]byte, 4)
-		_, err = diskFile.File.ReadAt(buf, int64(readOffset))
-		if err != nil {
-			panic(err)
-		}
-		readSize := util.BytesToUint32(buf)
 		readOffset += 4
 		var seg clp.ClgFileInfo
 		seg.Offset = uint64(readOffset)
-		seg.Size = uint32(readSize)
+		seg.Size = uint32(nv.Size)
 		if seg.Size < 1024 {
 			seg.Size += 4
 		}
