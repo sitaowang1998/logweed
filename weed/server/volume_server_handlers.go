@@ -268,6 +268,7 @@ func downloadArchive(vs *VolumeServer, request ClgSearchRequest) error {
 	}
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	volumeAddr := v.Locations[random.Intn(len(v.Locations))].PublicUrl
+	fmt.Printf("Select %v from %v.\n", volumeAddr, v.Locations)
 
 	archPath := "/mnt/ramdisk/archives/" + request.ArchiveID + "/" + request.ArchiveID
 	os.MkdirAll(archPath, 0777)
