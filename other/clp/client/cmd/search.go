@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -180,15 +181,27 @@ func search(cmd *cobra.Command, args []string) {
 	}
 	sched := scheduler.NewEvenSizeScheduler(archiveInfo)
 	schedulePlan := sched.Schedule()
+	// Shuffle the archive array so it is not sorted
+	maxLength := 0
+	for _, archives := range schedulePlan {
+		rand.Shuffle(len(archives), func(i, j int) {
+			archives[i], archives[j] = archives[j], archives[i]
+		})
+		if maxLength < len(archives) {
+			maxLength = len(archives)
+		}
+	}
 
 	// Search in parallel
 	results := make([]string, 0)
 	mutex := sync.Mutex{}
 	var wg sync.WaitGroup
-	for ip, archives := range schedulePlan {
-		for _, archive := range archives {
-			wg.Add(1)
-			go searchArchiveInVolume(archive, query, bts, ets, ip, &results, &mutex, &wg)
+	for i := 0; i < maxLength; i++ {
+		for ip, archives := range schedulePlan {
+			if i < len(archives) {
+				wg.Add(1)
+				go searchArchiveInVolume(archives[i], query, bts, ets, ip, &results, &mutex, &wg)
+			}
 		}
 	}
 	wg.Wait()
