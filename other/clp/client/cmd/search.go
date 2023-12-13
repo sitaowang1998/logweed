@@ -61,6 +61,7 @@ func parseTimeStamp(ts string) (uint64, error) {
 }
 
 func searchArchiveInVolume(archive metadata.ArchiveMetadata, ip string, query string, bts uint64, ets uint64, results *[]string, mutex *sync.Mutex, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	startTime := time.Now()
 
