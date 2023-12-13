@@ -279,7 +279,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		// read the size
 		readOffset += 4
 		clgfiles.Files[i].Offset = uint64(readOffset)
-		clgfiles.Files[i].Size = uint32(nv.Size) - 4
+		clgfiles.Files[i].Size = uint32(nv.Size)
 		if clgfiles.Files[i].Size < 1024 {
 			clgfiles.Files[i].Size += 4
 		}
@@ -340,7 +340,7 @@ func (vs *VolumeServer) clgHandler(w http.ResponseWriter, r *http.Request) {
 		readOffset += 4
 		var seg clp.ClgFileInfo
 		seg.Offset = uint64(readOffset)
-		seg.Size = uint32(nv.Size) - 4
+		seg.Size = uint32(nv.Size)
 		if seg.Size < 1024 {
 			seg.Size += 4
 		}
