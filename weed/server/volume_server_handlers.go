@@ -161,6 +161,7 @@ INSERT INTO archives(id, uncompressed_size, size, creator_id, creation_ix) VALUE
 	?, ?, ?, ?, ?
 );
 `
+const dropFileQuery = `DROP TABLE IF EXISTS files;`
 
 const createFileQuery = `
 CREATE TABLE files (id TEXT PRIMARY KEY,
@@ -200,6 +201,10 @@ func createCLGDB(dir string, archiveID string, uncompressedSize uint64, size uin
 	}
 	if _, err := db.Exec(insertArchiveQuery, archiveID, uncompressedSize, size, "", 0); err != nil {
 		glog.V(0).Infoln("Insert table fail", err)
+		return err
+	}
+	if _, err := db.Exec(dropFileQuery); err != nil {
+		glog.V(0).Infoln("Drop table fail", err)
 		return err
 	}
 	if _, err := db.Exec(createFileQuery); err != nil {
