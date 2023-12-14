@@ -9,11 +9,18 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"strings"
 )
 
-func UploadFile(volumeAddr string, fid string, filepath string) error {
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
+}
+
+func UploadFile(volumeAddr string, fid string, filepath string, uncompressed bool) error {
 	read, write := io.Pipe()
 	m := multipart.NewWriter(write)
 
@@ -21,7 +28,18 @@ func UploadFile(volumeAddr string, fid string, filepath string) error {
 		defer write.Close()
 		defer m.Close()
 
-		part, err := m.CreateFormFile("uploadfile", filepath)
+		var part io.Writer
+		var err error
+		if uncompressed {
+			h := make(textproto.MIMEHeader)
+			h.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+					escapeQuotes("uploadfile"), escapeQuotes(filepath)))
+			h.Set("Content-Type", "application/zstd")
+			part, err = m.CreatePart(h)
+		} else {
+			part, err = m.CreateFormFile("uploadfile", filepath)
+		}
 		if err != nil {
 			log.Printf("Create multipart %v fails. %v", filepath, err)
 			return
