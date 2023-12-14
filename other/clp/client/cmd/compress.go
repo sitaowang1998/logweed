@@ -80,7 +80,7 @@ func weedDownload(remotePath string, localPath string) error {
 
 // Wrapper for weed.UploadFile for go routine
 func uploadVolume(volumeAddr string, fid string, path string, wg *sync.WaitGroup) {
-	err := weed.UploadFile(volumeAddr, fid, path)
+	err := weed.UploadFile(volumeAddr, fid, path, true)
 	if err != nil {
 		log.Fatalf("Upload file %v to volume %v fid %v fails.", path, volumeAddr, fid)
 	}
